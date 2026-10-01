@@ -248,6 +248,9 @@ tr:last-child td{border-bottom:none;}
 .tour-skip{font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;font-family:'Tajawal',sans-serif;}
 
 .imp-table td,.imp-table th{padding:7px 10px;font-size:13px;}
+body.demo .no-demo{display:none !important;}
+.demo-badge{display:none;font-size:10px;font-weight:700;background:var(--amber);color:#fff;padding:2px 8px;border-radius:99px;margin-right:6px;vertical-align:middle;}
+body.demo .demo-badge{display:inline-block;}
 .ok-txt{color:var(--green-dark);font-weight:600;} .bad-txt{color:var(--red);font-weight:600;}
 
 @media(max-width:600px){
@@ -317,7 +320,7 @@ tr:last-child td{border-bottom:none;}
       <label>الفصل الدراسي الحالي</label>
       <select id="setup-semester"></select>
     </div>
-    <div class="form-group">
+    <div class="form-group no-demo">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
         <input type="checkbox" id="setup-pin-toggle" style="width:auto;accent-color:var(--green);" onchange="$('setup-pin-wrap').style.display=this.checked?'block':'none'"/> تفعيل رمز دخول PIN (اختياري)
       </label>
@@ -365,7 +368,7 @@ tr:last-child td{border-bottom:none;}
     <div class="topbar-title">
       <div class="logo" id="topbar-logo">📖</div>
       <div>
-        <h1 id="topbar-name">مركز التحفيظ</h1>
+        <h1><span id="topbar-name">مركز التحفيظ</span><span class="demo-badge">نسخة تجريبية</span></h1>
         <p>متابعة الرسوم · <span id="semester-label" style="color:var(--green-dark);font-weight:600;"></span></p>
       </div>
     </div>
@@ -379,9 +382,9 @@ tr:last-child td{border-bottom:none;}
           <button class="dropdown-item" onclick="closeDropdown();openMsgModal()">✏️ رسالة التذكير</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item" onclick="closeDropdown();exportBackup()">💾 تنزيل نسخة احتياطية</button>
-          <button class="dropdown-item" onclick="closeDropdown();openImport()">📂 استيراد بيانات</button>
+          <button class="dropdown-item no-demo" onclick="closeDropdown();openImport()">📂 استيراد بيانات</button>
           <div class="dropdown-divider"></div>
-          <button class="dropdown-item danger" onclick="closeDropdown();deleteAllData()">🗑 مسح كل البيانات</button>
+          <button class="dropdown-item danger no-demo" onclick="closeDropdown();deleteAllData()">🗑 مسح كل البيانات</button>
           <button class="dropdown-item" onclick="closeDropdown();doLogout()">🚪 تسجيل الخروج</button>
         </div>
       </div>
@@ -649,7 +652,7 @@ tr:last-child td{border-bottom:none;}
         <span id="cs-logo-preview"></span>
       </div>
     </div>
-    <div class="form-group">
+    <div class="form-group no-demo">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
         <input type="checkbox" id="cs-pin-toggle" style="width:auto;accent-color:var(--green);" onchange="$('cs-pin-wrap').style.display=this.checked?'block':'none'"/> رمز دخول PIN
       </label>
@@ -658,7 +661,7 @@ tr:last-child td{border-bottom:none;}
         <div class="hint">اتركه فارغاً للإبقاء على الرمز الحالي</div>
       </div>
     </div>
-    <div class="form-group">
+    <div class="form-group no-demo">
       <label>تغيير كلمة المرور (اختياري)</label>
       <input type="password" id="cs-cur-pass" placeholder="كلمة المرور الحالية" dir="ltr" style="margin-bottom:6px;" autocomplete="current-password"/>
       <div style="display:flex;gap:6px;">
@@ -792,7 +795,7 @@ tr:last-child td{border-bottom:none;}
    متابعة ميزانية المركز — النسخة السحابية (markas-cloud)
    رابط واحد · كل مركز بحسابه · ترخيص من جدول licenses
    ===================================================================== */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 // ===================== FIREBASE =====================
 const firebaseConfig = {
@@ -815,6 +818,7 @@ const COLS = ['halaqat', 'students', 'dourat', 'enrollments'];
 const D = { halaqat: [], students: [], dourat: [], enrollments: [] };
 let settings = {};
 let user = null, centerRef = null, unsubs = [], unsubLic = null;
+let isDemo = false; // licenses/{uid}.demo == true ← حساب عرض: بدون تغيير كلمة المرور / PIN / استيراد / مسح الكل
 let loaded = {}, pending = {};
 let pinOk = false, pinBuffer = '';
 let curPage = 'students';
@@ -958,6 +962,8 @@ auth.onAuthStateChanged(u => {
     if (!snap.exists && snap.metadata.fromCache) { boot('بانتظار الاتصال بالإنترنت...'); return; }
     const lic = snap.exists ? snap.data() : null;
     if (!licenseOk(lic)) { stopData(); showSuspended(lic); return; }
+    isDemo = lic.demo === true;
+    document.body.classList.toggle('demo', isDemo);
     if (!centerRef) startData();
   }, err => { console.error('license', err); stopData(); showSuspended(null); });
 });
@@ -997,7 +1003,7 @@ function onData() {
   if (!settings.centerName) { openSetup(); return; }
   if ($('app').style.display !== 'block') {
     show('app'); applyWords();
-    if (settings.pin && !pinOk) openLock();
+    if (settings.pin && !pinOk && !isDemo) openLock();
     maybeStartTour();
   }
   applyCenter();
@@ -1121,7 +1127,7 @@ function saveSetup() {
   if (!name) { toast('يرجى إدخال اسم المركز', 'warn'); return; }
   if (pinOn && !/^\d{4}$/.test(pin)) { toast('رمز الدخول يجب أن يكون 4 أرقام', 'warn'); return; }
   pinOk = true;
-  saveSettings({ centerName: name, gender: $('setup-gender').value, semester: $('setup-semester').value, pin: pinOn ? pin : '', waTemplate: DEFAULT_MSG, createdAt: FV.serverTimestamp() });
+  saveSettings({ centerName: name, gender: $('setup-gender').value, semester: $('setup-semester').value, pin: (pinOn && !isDemo) ? pin : '', waTemplate: DEFAULT_MSG, createdAt: FV.serverTimestamp() });
 }
 function applyCenter() {
   $('topbar-name').textContent = settings.centerName || 'مركز التحفيظ';
@@ -1189,8 +1195,8 @@ async function pickLogo(ev) {
 }
 async function saveSettingsModal() {
   const name = $('cs-name').value.trim();
-  const pinOn = $('cs-pin-toggle').checked, newPin = $('cs-pin').value.trim();
-  const cur = $('cs-cur-pass').value, np = $('cs-new-pass').value, cp = $('cs-conf-pass').value;
+  const pinOn = !isDemo && $('cs-pin-toggle').checked, newPin = $('cs-pin').value.trim();
+  const cur = $('cs-cur-pass').value, np = isDemo ? '' : $('cs-new-pass').value, cp = $('cs-conf-pass').value;
   if (!name) { toast('يرجى إدخال اسم المركز', 'warn'); return; }
   if (pinOn && newPin && !/^\d{4}$/.test(newPin)) { toast('رمز الدخول يجب أن يكون 4 أرقام', 'warn'); return; }
   if (pinOn && !newPin && !settings.pin) { toast('أدخل رمز PIN من 4 أرقام', 'warn'); return; }
@@ -1707,6 +1713,7 @@ function normalizeBackup(data) {
 let importData = null;
 const IMP_LABELS = { halaqat: 'الحلقات (مع المؤرشفة)', students: 'السجلات', dourat: 'الدورات', enrollments: 'تسجيلات الدورات' };
 function openImport() {
+  if (isDemo) { toast('غير متاح في النسخة التجريبية', 'warn'); return; }
   importData = null; $('imp-step1').style.display = 'block'; $('imp-step2').style.display = 'none'; $('imp-btn').style.display = 'none';
   openOverlay('import-overlay');
 }
@@ -1753,6 +1760,7 @@ async function runImport() {
   }
 }
 async function deleteAllData() {
+  if (isDemo) { toast('غير متاح في النسخة التجريبية', 'warn'); return; }
   const ok = await showConfirm('⚠️ مسح كل البيانات', 'سيتم حذف كل السجلات والحلقات والدورات نهائياً.\nسيتم تنزيل نسخة احتياطية أولاً.', 'متابعة', 'danger', '⚠️');
   if (!ok) return;
   if (prompt('للتأكيد اكتب كلمة: حذف') !== 'حذف') { toast('تم الإلغاء', 'info'); return; }
