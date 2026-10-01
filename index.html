@@ -380,6 +380,7 @@ body.demo .demo-badge{display:inline-block;}
           <button class="dropdown-item" onclick="closeDropdown();openSettings()">⚙️ إعدادات المركز</button>
           <button class="dropdown-item blue" onclick="closeDropdown();openRenewal()">🔄 تجديد الفصل</button>
           <button class="dropdown-item" onclick="closeDropdown();openMsgModal()">✏️ رسالة التذكير</button>
+          <button class="dropdown-item" onclick="closeDropdown();openRcptMsgModal()">🧾 رسالة الإيصال</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item" onclick="closeDropdown();exportBackup()">💾 تنزيل نسخة احتياطية</button>
           <button class="dropdown-item no-demo" onclick="closeDropdown();openImport()">📂 استيراد بيانات</button>
@@ -389,6 +390,7 @@ body.demo .demo-badge{display:inline-block;}
         </div>
       </div>
       <button class="btn wa" onclick="openBulk()">📲 تذكير الكل</button>
+      <button class="btn" style="color:var(--green-dark);border-color:var(--green-dark);" onclick="openReceipts()">🧾 تأكيد الدفع<span id="rcpt-count" style="font-weight:700;"></span></button>
     </div>
   </div>
 
@@ -692,6 +694,36 @@ body.demo .demo-badge{display:inline-block;}
   </div>
 </div>
 
+<!-- Receipts -->
+<div class="overlay" id="rcpt-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:480px;">
+    <h2>🧾 إيصالات بانتظار الإرسال <span id="rcpt-title-count" style="color:var(--text-muted);font-weight:500;"></span></h2>
+    <div class="hint" style="margin-bottom:12px;">بعد الضغط على "إرسال" تنحذف الدفعة من القائمة. "تم" تحذفها بدون إرسال.</div>
+    <div id="rcpt-list" style="display:flex;flex-direction:column;gap:7px;max-height:420px;overflow-y:auto;"></div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn sm" onclick="closeOverlay('rcpt-overlay');openRcptMsgModal()">✏ تعديل الرسالة</button>
+      <button class="btn" onclick="closeOverlay('rcpt-overlay')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt template -->
+<div class="overlay" id="rcptmsg-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:420px;">
+    <h2>🧾 رسالة الإيصال</h2>
+    <div class="form-group"><label>المقدمة</label><textarea id="rcpt-intro" rows="3" style="resize:vertical;"></textarea></div>
+    <div class="info-box" style="font-size:12px;">يُضاف تلقائياً: الاسم · البيان · المبلغ وطريقة الدفع · التاريخ · المتبقي (للتقسيط)</div>
+    <div class="form-group"><label>الختام</label><textarea id="rcpt-outro" rows="2" style="resize:vertical;"></textarea>
+      <div class="hint">يُضاف اسم المركز بعد الختام.</div></div>
+    <div class="form-group"><label>معاينة</label><div class="info-box" id="rcpt-preview" style="white-space:pre-wrap;margin:0;"></div></div>
+    <div class="modal-footer">
+      <button class="btn sm" onclick="$('rcpt-intro').value=DEFAULT_RCPT_INTRO;$('rcpt-outro').value=DEFAULT_RCPT_OUTRO;previewRcptMsg()">↩ افتراضي</button>
+      <button class="btn" onclick="closeOverlay('rcptmsg-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="saveRcptMsg()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
 <!-- Bulk WhatsApp -->
 <div class="overlay" id="bulk-overlay" onclick="overlayClick(event)">
   <div class="modal" style="width:460px;">
@@ -795,7 +827,7 @@ body.demo .demo-badge{display:inline-block;}
    متابعة ميزانية المركز — النسخة السحابية (markas-cloud)
    رابط واحد · كل مركز بحسابه · ترخيص من جدول licenses
    ===================================================================== */
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 // ===================== FIREBASE =====================
 const firebaseConfig = {
@@ -824,6 +856,8 @@ let pinOk = false, pinBuffer = '';
 let curPage = 'students';
 const openCards = new Set();
 const SEMESTERS = ['الفصل الأول', 'الفصل الثاني', 'الفصل الصيفي'];
+const DEFAULT_RCPT_INTRO = 'السلام عليكم ورحمة الله وبركاته\nنؤكد استلام الرسوم:';
+const DEFAULT_RCPT_OUTRO = 'جزاكم الله خيراً';
 const DEFAULT_MSG = 'السلام عليكم ورحمة الله وبركاته\nنذكّركم بسداد رسوم التسجيل\nجزاكم الله خيراً.';
 
 // ===================== HELPERS =====================
@@ -1016,6 +1050,8 @@ function scheduleRender() {
 }
 function renderCurrent() {
   if ($('app').style.display !== 'block') return;
+  updateRcptCount();
+  if ($('rcpt-overlay').classList.contains('open')) renderReceipts();
   if (curPage === 'students') renderStudents();
   else if (curPage === 'halaqat') renderHalaqat();
   else if (curPage === 'dourat') renderDourat();
@@ -1221,6 +1257,82 @@ function saveMsgTemplate() {
   if (!t) { toast('الرسالة لا يمكن أن تكون فارغة', 'warn'); return; }
   saveSettings({ waTemplate: t }); closeOverlay('msg-overlay'); toast('✅ تم حفظ الرسالة');
 }
+// ===================== RECEIPTS (تأكيد الدفع) =====================
+// كل دفعة تتأكد تحمل receiptPending=true حتى يُرسل إيصالها أو تُعلَّم "تم"
+function collectReceipts() {
+  const out = [];
+  const push = (t, inst, name, phone, ref, e, base, item) => {
+    const isInst = inst >= 0;
+    const amount = isInst ? +item.amount || 0 : effAmt(e, base);
+    const b = breakdown(e, base);
+    out.push({ t, inst, name, phone, ref: isInst ? `${ref} (دفعة ${inst + 1} من ${e.installments.length})` : ref,
+      amount, method: item.paymentMethod, paidAt: item.paidAt, remaining: isInst ? b.remaining : 0 });
+  };
+  const scan = (t, name, phone, ref, e, base) => {
+    const ft = e.feeType || 'normal';
+    if (ft === 'exempt' || ft === 'sponsored') return;
+    if (ft === 'installment' && Array.isArray(e.installments) && e.installments.length) {
+      e.installments.forEach((it, i) => { if (it.paid && it.receiptPending) push(t, i, name, phone, ref, e, base, it); });
+    } else if (e.paid && e.receiptPending) push(t, -1, name, phone, ref, e, base, e);
+  };
+  D.students.forEach(s => (s.halaqat || []).forEach(sh => { const h = hById(sh.hid); if (h) scan({ k: 'h', sid: s.id, hid: sh.hid }, s.name, s.phone, h.name, sh, +h.amount || 0); }));
+  D.enrollments.forEach(e => { const d = dById(e.douraId); if (d) scan({ k: 'e', eid: e.id }, e.name, e.phone, d.name, e, enrollBase(e)); });
+  return out.sort((a, b) => String(b.paidAt || '').localeCompare(String(a.paidAt || '')));
+}
+function plainDate(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; }
+function receiptText(r) {
+  const lines = [settings.receiptIntro || DEFAULT_RCPT_INTRO,
+    `الاسم: ${r.name}`, `البيان: ${r.ref}`,
+    `المبلغ: ${money(r.amount)}${r.method === 'cash' ? ' · كاش' : r.method === 'benefit' ? ' · بنفت' : ''}`,
+    `التاريخ: ${plainDate(r.paidAt)}`];
+  if (r.remaining > 0) lines.push(`المتبقي: ${money(r.remaining)}`);
+  lines.push(`${settings.receiptOutro || DEFAULT_RCPT_OUTRO} — ${settings.centerName || ''}`);
+  return lines.join('\n');
+}
+function updateRcptCount() { const n = collectReceipts().length; const el = $('rcpt-count'); if (el) el.textContent = n ? ` (${n})` : ''; }
+let _rcpt = [];
+function openReceipts() {
+  renderReceipts();
+  if (!_rcpt.length) { toast('✅ لا توجد إيصالات بانتظار الإرسال'); return; }
+  openOverlay('rcpt-overlay');
+}
+function renderReceipts() {
+  _rcpt = collectReceipts();
+  $('rcpt-title-count').textContent = _rcpt.length ? `(${_rcpt.length})` : '';
+  $('rcpt-list').innerHTML = _rcpt.length ? _rcpt.map((r, i) => `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--gray-bg);border-radius:var(--radius);gap:8px;">
+    <div style="min-width:0;"><div style="font-size:14px;font-weight:600;">${esc(r.name)}</div>
+      <div class="hint" style="margin:0;">${esc(r.ref)} · ${money(r.amount)} ${pmIcon(r.method)} · ${fmtDate(r.paidAt)}</div></div>
+    <div class="row-gap" style="flex-shrink:0;">
+      ${r.phone ? `<a href="${waLink(r.phone, receiptText(r))}" target="_blank" rel="noopener" class="btn wa sm" onclick="markReceipt(${i})">📲 إرسال</a>` : '<span class="badge muted">بدون رقم</span>'}
+      <button class="btn sm" onclick="markReceipt(${i})">✓ تم</button>
+    </div></div>`).join('') : '<div class="empty">✅ تم إرسال كل الإيصالات</div>';
+}
+function markReceipt(i) {
+  const r = _rcpt[i]; if (!r) return;
+  const g = getTarget(r.t); if (!g) return;
+  const item = r.inst >= 0 ? (g.entry.installments || [])[r.inst] : g.entry; if (!item) return;
+  item.receiptPending = false; g.save();
+  setTimeout(() => { renderReceipts(); updateRcptCount(); }, 50);
+}
+function openRcptMsgModal() {
+  $('rcpt-intro').value = settings.receiptIntro || DEFAULT_RCPT_INTRO;
+  $('rcpt-outro').value = settings.receiptOutro || DEFAULT_RCPT_OUTRO;
+  previewRcptMsg(); openOverlay('rcptmsg-overlay');
+}
+function previewRcptMsg() {
+  const keep = { i: settings.receiptIntro, o: settings.receiptOutro };
+  settings.receiptIntro = $('rcpt-intro').value.trim(); settings.receiptOutro = $('rcpt-outro').value.trim();
+  $('rcpt-preview').textContent = receiptText({ name: 'اسم ' + w('student'), ref: 'حلقة الفجر (دفعة 2 من 3)', amount: 5, method: 'benefit', paidAt: new Date().toISOString(), remaining: 5 });
+  settings.receiptIntro = keep.i; settings.receiptOutro = keep.o;
+}
+['input'].forEach(ev => document.addEventListener(ev, e => { if (e.target && (e.target.id === 'rcpt-intro' || e.target.id === 'rcpt-outro')) previewRcptMsg(); }));
+function saveRcptMsg() {
+  const intro = $('rcpt-intro').value.trim(), outro = $('rcpt-outro').value.trim();
+  if (!intro) { toast('المقدمة لا يمكن أن تكون فارغة', 'warn'); return; }
+  saveSettings({ receiptIntro: intro, receiptOutro: outro || DEFAULT_RCPT_OUTRO });
+  closeOverlay('rcptmsg-overlay'); toast('✅ تم حفظ رسالة الإيصال');
+}
+
 function openBulk() {
   const seen = new Set(), list = [];
   sortAr(D.students).forEach(s => {
@@ -1396,7 +1508,7 @@ async function startPay(t, inst) {
     const ok = await showConfirm('إلغاء الدفعة', `إلغاء تسجيل الدفع؟\n${g.label}`, 'إلغاء الدفعة', 'danger', '↩');
     if (!ok) return;
     const g2 = getTarget(t); if (!g2) return; const e2 = g2.entry; const it2 = inst >= 0 ? e2.installments[inst] : e2;
-    it2.paid = false; it2.paidAt = null; it2.paymentMethod = null;
+    it2.paid = false; it2.paidAt = null; it2.paymentMethod = null; it2.receiptPending = false;
     if (inst >= 0) { e2.paid = false; e2.paidAt = null; e2.paymentMethod = null; }
     g2.save(); toast('تم إلغاء الدفعة', 'info'); return;
   }
@@ -1408,10 +1520,10 @@ function confirmPayMethod(m) {
   if (!pendingPay) return; const { t, inst } = pendingPay; pendingPay = null; closeOverlay('paymethod-overlay');
   const g = getTarget(t); if (!g) return; const e = g.entry, now = new Date().toISOString();
   if (inst >= 0) {
-    const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m;
+    const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m; it.receiptPending = true;
     if (e.installments.every(i => i.paid)) { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
-  } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
-  g.save(); toast(m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 بنفت');
+  } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; e.receiptPending = true; }
+  g.save(); toast((m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 بنفت') + ' · 🧾 أُضيفت للإيصالات');
 }
 
 // ===================== FEE TYPE =====================
@@ -1444,7 +1556,7 @@ async function saveFeeType() {
     e.paid = e.installments.every(i => i.paid);
   } else {
     e.installments = null;
-    if (t === 'exempt' || t === 'sponsored') { e.paid = false; e.paidAt = null; e.paymentMethod = null; }
+    if (t === 'exempt' || t === 'sponsored') { e.paid = false; e.paidAt = null; e.paymentMethod = null; e.receiptPending = false; }
   }
   e.feeType = t; e.customAmount = (t === 'reduced' || t === 'sponsored') ? amt : 0;
   g.save(); closeOverlay('feetype-overlay'); toast('✅ تم حفظ نوع الرسوم');
@@ -1655,8 +1767,8 @@ async function confirmRenewal() {
   if (!ok) return;
   exportBackup(true);
   const reset = sh => {
-    const n = { ...sh, paid: false, paidAt: null, paymentMethod: null };
-    if (Array.isArray(sh.installments)) n.installments = sh.installments.map(i => ({ ...i, paid: false, paidAt: null, paymentMethod: null }));
+    const n = { ...sh, paid: false, paidAt: null, paymentMethod: null, receiptPending: false };
+    if (Array.isArray(sh.installments)) n.installments = sh.installments.map(i => ({ ...i, paid: false, paidAt: null, paymentMethod: null, receiptPending: false }));
     return n;
   };
   const ops = D.students.filter(s => !s.paused).map(s => ({ type: 'update', c: 'students', id: s.id, data: { halaqat: JSON.parse(JSON.stringify((s.halaqat || []).map(reset))) } }));
@@ -1990,6 +2102,7 @@ function openHelp() {
   const [title, items] = helpContent(curPage);
   $('help-title').textContent = '❓ ' + title;
   $('help-content').innerHTML = items.map(([i, t, d]) => `<div class="help-item"><div class="help-icon">${i}</div><div><div class="help-text-title">${esc(t)}</div><div class="help-text-desc">${esc(d)}</div></div></div>`).join('')
+    + `<div class="help-item"><div class="help-icon">🧾</div><div><div class="help-text-title">تأكيد الدفع</div><div class="help-text-desc">كل دفعة تتأكد تنضاف لزر "🧾 تأكيد الدفع" فوق — ترسل منه إيصال واتساب لكل دفعة.</div></div></div>`
     + `<div class="help-item"><div class="help-icon">☁️</div><div><div class="help-text-title">الحفظ السحابي</div><div class="help-text-desc">كل تعديل يُحفظ فوراً ويظهر على كل الأجهزة. بدون إنترنت يُحفظ على الجهاز ويُرفع تلقائياً عند الاتصال.</div></div></div>`;
   openOverlay('help-overlay');
 }

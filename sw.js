@@ -1,6 +1,6 @@
 // Service Worker — markas-cloud
 // HTML: الشبكة أولاً (التحديثات توصل تلقائياً) — باقي الملفات: الكاش أولاً
-const CACHE = 'markas-cloud-v2';
+const CACHE = 'markas-cloud-v3';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
