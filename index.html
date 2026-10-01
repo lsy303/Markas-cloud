@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#1D9E75"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="مركز"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="manifest" href="manifest.json"/>
+<title>متابعة ميزانية المركز</title>
+<meta name="description" content="نظام سحابي لإدارة الطلبة والحلقات والدورات ومتابعة الرسوم لمراكز التحفيظ."/>
+<meta property="og:title" content="متابعة ميزانية المركز"/>
+<meta property="og:description" content="نظام سحابي لإدارة الطلبة والحلقات والدورات ومتابعة الرسوم لمراكز التحفيظ."/>
+<meta property="og:type" content="website"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root{
+  --green:#1D9E75;--green-dark:#0F6E56;--green-light:#E1F5EE;
+  --red:#E24B4A;--red-light:#FCEBEB;
+  --amber:#BA7517;--amber-light:#FEF3DC;
+  --blue:#185FA5;--blue-light:#E6F1FB;
+  --gray-bg:#F7F6F3;--gray-border:#E2E0DA;
+  --text:#1a1a1a;--text-muted:#6b6b6b;
+  --white:#fff;--radius:10px;--radius-lg:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Tajawal',sans-serif;background:var(--gray-bg);color:var(--text);min-height:100vh;}
+
+.topbar{background:var(--white);border-bottom:1px solid var(--gray-border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50;}
+.topbar-title{display:flex;align-items:center;gap:10px;}
+.logo{width:36px;height:36px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;overflow:hidden;}
+.logo img{width:36px;height:36px;object-fit:cover;}
+.topbar h1{font-size:15px;font-weight:700;line-height:1.3;}
+.topbar p{font-size:11px;color:var(--text-muted);}
+.topbar-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.sync{font-size:11px;color:var(--text-muted);white-space:nowrap;}
+.sync.ok{color:var(--green-dark);} .sync.warn{color:var(--amber);}
+
+.tabs{display:flex;gap:2px;padding:0 20px;background:var(--white);border-bottom:1px solid var(--gray-border);overflow-x:auto;}
+.tab{font-family:'Tajawal',sans-serif;font-size:13px;font-weight:500;padding:10px 16px;border:none;background:none;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab.active{color:var(--green-dark);border-bottom-color:var(--green);}
+
+.container{max-width:1000px;margin:0 auto;padding:18px 14px 90px;}
+.page{display:none;}.page.active{display:block;}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.stat-card{background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius);padding:12px 14px;}
+.stat-label{font-size:11px;color:var(--text-muted);margin-bottom:3px;}
+.stat-value{font-size:22px;font-weight:700;}
+.stat-value.green{color:var(--green-dark);} .stat-value.red{color:var(--red);} .stat-value.amber{color:var(--amber);}
+.stat-progress{height:4px;background:var(--gray-border);border-radius:99px;margin-top:6px;}
+.stat-progress-fill{height:4px;border-radius:99px;transition:width .4s ease;}
+
+.toolbar{background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);padding:12px 14px;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.toolbar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:180px;}
+
+.btn{font-family:'Tajawal',sans-serif;font-size:13px;font-weight:500;padding:7px 13px;border-radius:var(--radius);border:1px solid var(--gray-border);background:var(--white);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;transition:background .12s;text-decoration:none;}
+.btn:hover{background:var(--gray-bg);}
+.btn:disabled{opacity:.6;cursor:default;}
+.btn.primary{background:var(--green);border-color:var(--green-dark);color:#fff;}
+.btn.primary:hover{background:var(--green-dark);}
+.btn.wa{background:#25D366;border-color:#1aac55;color:#fff;}
+.btn.wa:hover{background:#1aac55;}
+.btn.amber{background:var(--amber);border-color:#96600f;color:#fff;}
+.btn.sm{font-size:12px;padding:4px 9px;}
+.btn.danger{color:var(--red);}
+.btn.danger:hover{background:var(--red-light);border-color:#f0b0b0;}
+.btn.confirm{color:var(--green-dark);}
+.btn.confirm:hover{background:var(--green-light);}
+.btn.gear{color:var(--text-muted);font-size:11px;}
+.btn.block{width:100%;justify-content:center;}
+
+input[type=text],input[type=number],input[type=email],input[type=password],select,textarea{font-family:'Tajawal',sans-serif;font-size:14px;padding:8px 11px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);color:var(--text);outline:none;transition:border-color .15s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--green);}
+
+.student-card{background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden;}
+.student-card.paused{opacity:.75;}
+.student-card.doura{border-right:4px solid var(--amber);}
+.student-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;gap:10px;flex-wrap:wrap;user-select:none;}
+.student-header:hover{background:#fafaf8;}
+.hdr-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none;}
+.chev{color:var(--text-muted);font-size:18px;}
+.student-name{font-weight:600;font-size:15px;margin-bottom:2px;}
+.student-phone{font-size:12px;color:var(--text-muted);text-align:right;}
+.student-note{font-size:12px;color:var(--amber);margin-top:2px;}
+.student-body{border-top:1px solid var(--gray-border);padding:12px 16px;background:#fdfcfa;display:none;}
+.student-body.open{display:block;}
+.halaqa-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius);margin-bottom:8px;flex-wrap:wrap;gap:8px;}
+.halaqa-row.dim{opacity:.5;pointer-events:none;}
+.halaqa-name-txt{font-size:13px;font-weight:500;}
+.halaqa-amount-txt{font-size:12px;color:var(--text-muted);}
+.row-gap{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.student-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.muted-txt{font-size:13px;color:var(--text-muted);}
+.paid-col{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.paid-date{font-size:10px;color:var(--text-muted);display:block;}
+.inst-wrap{width:100%;margin-top:4px;}
+.installment-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--gray-bg);border-radius:var(--radius);margin-bottom:5px;flex-wrap:wrap;gap:6px;}
+.installment-label{font-size:12px;font-weight:600;}
+.installment-date{font-size:10px;color:var(--text-muted);}
+.inst-sum{font-size:11px;color:var(--text-muted);padding:4px 0;}
+.wa-inline{color:#1aac55;font-weight:600;text-decoration:none;}
+
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 9px;border-radius:99px;white-space:nowrap;}
+.badge.sm{font-size:10px;}
+.badge.paid{background:var(--green-light);color:var(--green-dark);}
+.badge.unpaid{background:var(--red-light);color:#A32D2D;}
+.badge.halaqa{background:var(--blue-light);color:var(--blue);margin-left:3px;}
+.badge.amber{background:var(--amber-light);color:var(--amber);}
+.badge.blue{background:var(--blue-light);color:var(--blue);}
+.badge.muted{background:#f0eeea;color:var(--text-muted);}
+.badge.orange{background:#FFF3E0;color:#E65100;}
+.badge.cash{background:#E8F8EE;color:#0F6E56;}
+
+.card{background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{background:#fafaf8;font-weight:600;font-size:12px;color:var(--text-muted);padding:9px 14px;text-align:right;border-bottom:1px solid var(--gray-border);}
+td{padding:9px 14px;border-bottom:1px solid #f0eeea;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+
+.empty{text-align:center;padding:36px;color:var(--text-muted);font-size:14px;}
+.empty-state{text-align:center;padding:48px 20px;}
+.empty-state-icon{font-size:52px;margin-bottom:14px;opacity:.4;}
+.empty-state-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.empty-state-sub{font-size:13px;color:var(--text-muted);line-height:1.7;}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:var(--radius-lg);padding:22px;width:430px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:16px;}
+.form-group{margin-bottom:13px;}
+.form-group label{font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;}
+.hint{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
+.info-box{background:var(--gray-bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:13px;line-height:1.8;color:var(--text-muted);}
+.warn-box{background:var(--amber-light);color:#7a4c0c;border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.8;}
+
+.halaqa-check-list{display:flex;flex-direction:column;gap:6px;max-height:210px;overflow-y:auto;}
+.halaqa-check-item{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--gray-border);border-radius:var(--radius);cursor:pointer;}
+.halaqa-check-item input{width:auto;accent-color:var(--green);}
+.halaqa-check-label{font-size:13px;flex:1;}
+.halaqa-check-price{font-size:12px;color:var(--text-muted);}
+
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.section-title{font-size:15px;font-weight:600;}
+.export-note{font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;}
+
+.dropdown{position:relative;}
+.dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:220px;z-index:100;overflow:hidden;display:none;}
+.dropdown-menu.open{display:block;}
+.dropdown-item{display:flex;align-items:center;gap:10px;padding:11px 16px;font-family:'Tajawal',sans-serif;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;border:none;background:none;width:100%;text-align:right;}
+.dropdown-item:hover{background:var(--gray-bg);}
+.dropdown-item.danger{color:var(--red);} .dropdown-item.blue{color:var(--blue);}
+.dropdown-divider{height:1px;background:var(--gray-border);margin:4px 0;}
+
+.rpt-section{background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);margin-bottom:18px;overflow:hidden;}
+.rpt-header{background:var(--green-dark);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.rpt-header.amber{background:var(--amber);}
+.rpt-header h3{font-size:15px;font-weight:700;}
+.rpt-header span{font-size:13px;opacity:.85;}
+.rpt-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:1px;background:var(--gray-border);}
+.rpt-stat{background:var(--white);padding:12px 14px;text-align:center;}
+.rpt-stat-val{font-size:20px;font-weight:700;color:var(--green-dark);}
+.rpt-stat-val.red{color:var(--red);} .rpt-stat-val.amber{color:var(--amber);}
+.rpt-stat-label{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.rpt-table{width:100%;border-collapse:collapse;font-size:13px;}
+.rpt-table th{background:#f5f4f0;font-size:11px;padding:8px 14px;}
+.rpt-table td{padding:8px 14px;}
+.progress-bar-wrap{background:#eee;border-radius:99px;height:6px;min-width:60px;}
+.progress-bar-fill{height:6px;border-radius:99px;transition:width .3s;}
+.rpt-block{padding:14px 16px;border-bottom:1px solid var(--gray-border);}
+.late-box{margin-top:10px;padding:10px;background:var(--red-light);border-radius:var(--radius);font-size:12px;}
+
+@media print{
+  body *{visibility:hidden;}
+  #print-area,#print-area *{visibility:visible;}
+  #print-area{position:absolute;top:0;left:0;right:0;padding:10px;background:#fff;}
+  .no-print{display:none !important;}
+  .rpt-header{background:#0F6E56 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .rpt-table tr{page-break-inside:avoid;}
+}
+
+.screen{position:fixed;inset:0;background:var(--gray-bg);z-index:900;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+.screen-card{background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);padding:32px 28px;width:420px;max-width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);}
+.screen-card .form-group{text-align:right;}
+.screen-icon{font-size:48px;margin-bottom:12px;}
+.screen-title{font-size:20px;font-weight:700;margin-bottom:6px;}
+.screen-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px;line-height:1.7;}
+.err{font-size:12px;color:var(--red);min-height:18px;margin-top:6px;}
+.spinner{width:36px;height:36px;border:3px solid var(--green-light);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.logo-preview{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--gray-border);}
+
+.lock-screen{position:fixed;inset:0;background:var(--green-dark);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;}
+.lock-card{background:var(--white);border-radius:var(--radius-lg);padding:32px 28px;width:340px;max-width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);}
+.lock-card h2{font-size:18px;font-weight:700;margin-bottom:6px;}
+.lock-card p{font-size:13px;color:var(--text-muted);margin-bottom:22px;}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:22px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:var(--gray-border);transition:background .15s;}
+.pin-dot.filled{background:var(--green);} .pin-dot.error{background:var(--red);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto;direction:ltr;}
+.pin-btn{font-family:'Tajawal',sans-serif;font-size:20px;font-weight:600;padding:14px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);cursor:pointer;color:var(--text);}
+.pin-btn:active{background:var(--green);color:#fff;}
+.pin-btn.zero{grid-column:2;}
+.pin-btn.del{font-size:16px;color:var(--text-muted);}
+
+.toast-container{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+.toast{padding:10px 20px;border-radius:99px;font-size:13px;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.2);opacity:0;transform:translateY(20px);transition:all .3s ease;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.success{background:var(--green-dark);} .toast.error{background:var(--red);} .toast.info{background:var(--blue);} .toast.warn{background:var(--amber);}
+
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1050;align-items:center;justify-content:center;}
+.confirm-overlay.open{display:flex;}
+.confirm-box{background:var(--white);border-radius:var(--radius-lg);padding:24px;width:360px;max-width:94vw;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.confirm-icon{font-size:40px;margin-bottom:12px;}
+.confirm-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.confirm-msg{font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:20px;white-space:pre-line;}
+.confirm-btns{display:flex;gap:8px;justify-content:center;}
+
+.paymethod{flex:1;flex-direction:column;padding:16px 8px;font-size:14px;line-height:1.5;}
+
+.help-btn{position:fixed;bottom:24px;left:20px;width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:90;}
+.help-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--gray-border);}
+.help-item:last-child{border-bottom:none;}
+.help-icon{font-size:18px;min-width:28px;text-align:center;}
+.help-text-title{font-size:13px;font-weight:600;margin-bottom:2px;}
+.help-text-desc{font-size:12px;color:var(--text-muted);line-height:1.7;}
+
+.tour-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:flex-end;justify-content:center;}
+.tour-overlay.open{display:flex;}
+.tour-card{background:var(--white);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:28px 24px 32px;width:100%;max-width:520px;animation:slideUp .3s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.tour-step-num{font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:600;}
+.tour-title{font-size:18px;font-weight:700;color:var(--green-dark);margin-bottom:8px;}
+.tour-desc{font-size:14px;color:var(--text-muted);line-height:1.8;margin-bottom:20px;}
+.tour-dots{display:flex;gap:6px;justify-content:center;margin-bottom:16px;}
+.tour-dot{width:8px;height:8px;border-radius:50%;background:var(--gray-border);}
+.tour-dot.active{background:var(--green);}
+.tour-skip{font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;font-family:'Tajawal',sans-serif;}
+
+.imp-table td,.imp-table th{padding:7px 10px;font-size:13px;}
+.ok-txt{color:var(--green-dark);font-weight:600;} .bad-txt{color:var(--red);font-weight:600;}
+
+@media(max-width:600px){
+  .container{padding:10px 8px 90px;}
+  .topbar{padding:10px 12px;}
+  .topbar h1{font-size:13px;}
+  .dropdown-menu{left:auto;right:0;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ BOOT ============ -->
+<div class="screen" id="boot-screen" style="display:flex;">
+  <div class="screen-card">
+    <div class="spinner"></div>
+    <div class="screen-sub" id="boot-msg" style="margin:0;">جارٍ التحميل...</div>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div class="screen" id="login-screen">
+  <div class="screen-card">
+    <div class="screen-icon">🔐</div>
+    <div class="screen-title">تسجيل الدخول</div>
+    <div class="screen-sub">متابعة ميزانية المركز</div>
+    <div class="form-group">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="login-email" placeholder="example@email.com" dir="ltr" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>كلمة المرور</label>
+      <div style="position:relative;">
+        <input type="password" id="login-password" placeholder="كلمة المرور" dir="ltr" autocomplete="current-password" style="padding-left:40px;" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button type="button" onclick="toggleLoginPass()" id="login-eye" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;">👁</button>
+      </div>
+      <div class="err" id="login-error"></div>
+    </div>
+    <button class="btn primary block" onclick="doLogin()" id="login-btn">دخول</button>
+    <div style="margin-top:14px;"><button class="btn sm" style="color:var(--text-muted);font-size:11px;" onclick="forgotPassword()">نسيت كلمة المرور؟</button></div>
+  </div>
+</div>
+
+<!-- ============ SUSPENDED ============ -->
+<div class="screen" id="suspended-screen">
+  <div class="screen-card">
+    <div class="screen-icon">⛔</div>
+    <div class="screen-title" id="susp-title">الاشتراك غير مفعّل</div>
+    <div class="screen-sub" id="susp-sub">هذا الحساب غير مفعّل حالياً.<br/>يرجى التواصل مع إدارة النظام لتفعيل الاشتراك.</div>
+    <div class="info-box" id="susp-email" dir="ltr" style="text-align:center;"></div>
+    <button class="btn block" onclick="auth.signOut()">تسجيل الخروج</button>
+  </div>
+</div>
+
+<!-- ============ SETUP ============ -->
+<div class="screen" id="setup-screen">
+  <div class="screen-card">
+    <div class="screen-icon">📖</div>
+    <div class="screen-title">إعداد المركز</div>
+    <div class="screen-sub">خطوة واحدة قبل البدء</div>
+    <div class="form-group"><label>اسم المركز</label><input type="text" id="setup-name" placeholder="مثال: مركز نور القرآن"/></div>
+    <div class="form-group">
+      <label>نوع المركز</label>
+      <select id="setup-gender"><option value="f">مركز بنات</option><option value="m">مركز بنين</option></select>
+    </div>
+    <div class="form-group">
+      <label>الفصل الدراسي الحالي</label>
+      <select id="setup-semester"></select>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="setup-pin-toggle" style="width:auto;accent-color:var(--green);" onchange="$('setup-pin-wrap').style.display=this.checked?'block':'none'"/> تفعيل رمز دخول PIN (اختياري)
+      </label>
+      <div id="setup-pin-wrap" style="display:none;margin-top:8px;">
+        <input type="password" id="setup-pin" placeholder="4 أرقام" dir="ltr" maxlength="4" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)" style="letter-spacing:8px;font-size:20px;text-align:center;"/>
+      </div>
+    </div>
+    <button class="btn primary block" onclick="saveSetup()">🚀 ابدأ</button>
+  </div>
+</div>
+
+<!-- ============ PIN LOCK ============ -->
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-card">
+    <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+    <h2>رمز الدخول</h2>
+    <p id="lock-subtitle"></p>
+    <div id="lock-pad-wrap">
+      <div class="pin-dots">
+        <div class="pin-dot" id="dot-0"></div><div class="pin-dot" id="dot-1"></div><div class="pin-dot" id="dot-2"></div><div class="pin-dot" id="dot-3"></div>
+      </div>
+      <div class="pin-pad">
+        <button class="pin-btn" onclick="pinPress('1')">1</button><button class="pin-btn" onclick="pinPress('2')">2</button><button class="pin-btn" onclick="pinPress('3')">3</button>
+        <button class="pin-btn" onclick="pinPress('4')">4</button><button class="pin-btn" onclick="pinPress('5')">5</button><button class="pin-btn" onclick="pinPress('6')">6</button>
+        <button class="pin-btn" onclick="pinPress('7')">7</button><button class="pin-btn" onclick="pinPress('8')">8</button><button class="pin-btn" onclick="pinPress('9')">9</button>
+        <button class="pin-btn zero" onclick="pinPress('0')">0</button><button class="pin-btn del" onclick="pinDel()">⌫</button>
+      </div>
+      <div class="err" id="lock-error"></div>
+      <button class="btn sm" style="margin-top:12px;color:var(--text-muted);font-size:11px;" onclick="showPinForgot()">نسيت الرمز؟</button>
+    </div>
+    <div id="lock-forgot-wrap" style="display:none;text-align:right;">
+      <div class="form-group"><label>كلمة مرور الحساب للتحقق</label><input type="password" id="lock-pass" dir="ltr"/></div>
+      <div class="err" id="lock-pass-err"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn" onclick="hidePinForgot()">رجوع</button>
+        <button class="btn primary" style="flex:1;justify-content:center;" onclick="pinForgotSubmit()">تحقق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="logo" id="topbar-logo">📖</div>
+      <div>
+        <h1 id="topbar-name">مركز التحفيظ</h1>
+        <p>متابعة الرسوم · <span id="semester-label" style="color:var(--green-dark);font-weight:600;"></span></p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="sync" id="sync"></span>
+      <div class="dropdown" id="main-dropdown">
+        <button class="btn primary" onclick="toggleDropdown()">☰ القائمة ▾</button>
+        <div class="dropdown-menu" id="main-dropdown-menu">
+          <button class="dropdown-item" onclick="closeDropdown();openSettings()">⚙️ إعدادات المركز</button>
+          <button class="dropdown-item blue" onclick="closeDropdown();openRenewal()">🔄 تجديد الفصل</button>
+          <button class="dropdown-item" onclick="closeDropdown();openMsgModal()">✏️ رسالة التذكير</button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" onclick="closeDropdown();exportBackup()">💾 تنزيل نسخة احتياطية</button>
+          <button class="dropdown-item" onclick="closeDropdown();openImport()">📂 استيراد بيانات</button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item danger" onclick="closeDropdown();deleteAllData()">🗑 مسح كل البيانات</button>
+          <button class="dropdown-item" onclick="closeDropdown();doLogout()">🚪 تسجيل الخروج</button>
+        </div>
+      </div>
+      <button class="btn wa" onclick="openBulk()">📲 تذكير الكل</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-page="students" onclick="showPage('students')"><span data-w="emoji"></span> <span data-w="studentsTab"></span></button>
+    <button class="tab" data-page="halaqat" onclick="showPage('halaqat')">📚 الحلقات</button>
+    <button class="tab" data-page="dourat" onclick="showPage('dourat')">🌟 الدورات والأنشطة</button>
+    <button class="tab" data-page="reports" onclick="showPage('reports')">📊 التقارير</button>
+    <button class="tab" data-page="archive" onclick="showPage('archive')">📦 الأرشيف</button>
+  </div>
+
+  <!-- STUDENTS -->
+  <div class="page active" id="page-students">
+    <div class="container">
+      <div class="stats" id="stats"></div>
+      <div class="toolbar">
+        <div class="toolbar-row">
+          <div class="search-wrap"><input type="text" id="search" placeholder="🔍 بحث بالاسم أو الهاتف أو رقم المستخدم أو الرقم الشخصي" oninput="debouncedRender()"/></div>
+        </div>
+        <div class="toolbar-row">
+          <select id="filter-halaqa" onchange="renderStudents()" style="flex:1;min-width:120px;"></select>
+          <select id="filter-paid" onchange="renderStudents()" style="flex:1;min-width:130px;">
+            <option value="all">كل الحالات</option>
+            <option value="unpaid">عليها/عليه دفعات متأخرة</option>
+            <option value="paid">مكتمل الدفع</option>
+            <option value="paused">موقوف مؤقتاً</option>
+          </select>
+          <button class="btn primary" onclick="openStudentModal()">+ <span data-w="addStudent"></span></button>
+        </div>
+      </div>
+      <div id="students-list"></div>
+      <p class="export-note">البيانات محفوظة في السحابة وتتزامن تلقائياً بين كل الأجهزة ✓</p>
+    </div>
+  </div>
+
+  <!-- HALAQAT -->
+  <div class="page" id="page-halaqat">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-title">الحلقات</div>
+        <button class="btn primary" onclick="openHalaqaModal()">+ إضافة حلقة</button>
+      </div>
+      <div class="card" style="overflow-x:auto;">
+        <table style="min-width:780px;">
+          <thead><tr><th>#</th><th>اسم الحلقة</th><th>النوع</th><th>الوقت</th><th data-w="teacherH"></th><th data-w="supervisorH"></th><th>المبلغ الفصلي</th><th>العدد</th><th>إجراءات</th></tr></thead>
+          <tbody id="halaqat-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOURAT -->
+  <div class="page" id="page-dourat">
+    <div class="container">
+      <div class="stats" id="dourat-stats"></div>
+      <div class="section-header">
+        <div class="section-title">الدورات والأنشطة</div>
+        <div class="row-gap">
+          <button class="btn" style="color:var(--green-dark);border-color:var(--green-dark);" onclick="openExcelImport()">📊 استيراد Excel</button>
+          <button class="btn primary" onclick="openDouraModal()">+ إضافة دورة / نشاط</button>
+        </div>
+      </div>
+      <div id="dourat-list"></div>
+    </div>
+  </div>
+
+  <!-- REPORTS -->
+  <div class="page" id="page-reports">
+    <div class="container">
+      <div class="toolbar" style="flex-direction:row;flex-wrap:wrap;align-items:center;">
+        <select id="rpt-filter" onchange="renderReports()" style="width:auto;min-width:160px;">
+          <option value="all">📊 كل التقارير</option>
+          <option value="halaqat">📚 الحلقات فقط</option>
+          <option value="dourat">🌟 الدورات فقط</option>
+        </select>
+        <button class="btn primary" onclick="printReport()">🖨 طباعة / PDF</button>
+        <button class="btn" style="color:var(--green-dark);border-color:var(--green-dark);" onclick="exportReportExcel()">📊 تصدير Excel</button>
+      </div>
+      <div id="report-content"></div>
+    </div>
+  </div>
+
+  <!-- ARCHIVE -->
+  <div class="page" id="page-archive">
+    <div class="container">
+      <div class="section-header"><div class="section-title">📦 الحلقات المؤرشفة</div></div>
+      <div class="card" style="margin-bottom:20px;overflow-x:auto;">
+        <table style="min-width:500px;"><thead><tr><th>#</th><th>اسم الحلقة</th><th>المبلغ</th><th>العدد</th><th>إجراءات</th></tr></thead><tbody id="archive-tbody"></tbody></table>
+      </div>
+      <div class="section-header"><div class="section-title">📦 الدورات والأنشطة المؤرشفة</div></div>
+      <div class="card" style="overflow-x:auto;">
+        <table style="min-width:500px;"><thead><tr><th>#</th><th>اسم الدورة</th><th>المسجلين</th><th>إجراءات</th></tr></thead><tbody id="archive-dourat-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <button class="help-btn" onclick="openHelp()" title="مساعدة">❓</button>
+</div>
+
+<!-- ============ MODALS ============ -->
+
+<!-- Payment method -->
+<div class="overlay" id="paymethod-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:340px;">
+    <h2>💳 طريقة الدفع</h2>
+    <div id="paymethod-info" class="info-box"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn confirm paymethod" onclick="confirmPayMethod('cash')">💵<span>كاش</span></button>
+      <button class="btn confirm paymethod" onclick="confirmPayMethod('benefit')">🏦<span>بنفت</span></button>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeOverlay('paymethod-overlay')">إلغاء</button></div>
+  </div>
+</div>
+
+<!-- Student -->
+<div class="overlay" id="student-overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="student-modal-title"></h2>
+    <div class="form-group"><label>الاسم</label><input type="text" id="f-name" placeholder="الاسم الكامل"/></div>
+    <div class="form-group"><label>رقم المستخدم (برنامج إقراء)</label><input type="text" id="f-userid" placeholder="12345678" dir="ltr" maxlength="8" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,8)"/></div>
+    <div class="form-group"><label>الرقم الشخصي (اختياري)</label><input type="text" id="f-personalid" placeholder="000000000" dir="ltr" maxlength="9" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,9)"/></div>
+    <div class="form-group"><label>رقم الهاتف (8 أرقام)</label><input type="text" id="f-phone" placeholder="3XXXXXXX" dir="ltr" maxlength="8" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,8)"/></div>
+    <div class="form-group"><label>ملاحظة (اختياري)</label><input type="text" id="f-note"/></div>
+    <div class="form-group"><label>الحلقات المسجل فيها</label><div class="halaqa-check-list" id="halaqa-checklist"></div></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('student-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="saveStudent()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Halaqa -->
+<div class="overlay" id="halaqa-overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="halaqa-modal-title"></h2>
+    <div class="form-group"><label>اسم الحلقة</label><input type="text" id="h-name" placeholder="مثال: حلقة الفجر"/></div>
+    <div class="form-group"><label>نوع الحلقة (اختياري)</label><input type="text" id="h-type" placeholder="تحفيظ / تجويد / مراجعة"/></div>
+    <div class="form-group"><label>وقت الحلقة</label>
+      <select id="h-time"><option value="">-- غير محدد --</option><option value="صباحي">☀️ صباحي</option><option value="مسائي">🌙 مسائي</option></select>
+    </div>
+    <div class="form-group"><label data-w="teacherL"></label><input type="text" id="h-teacher"/></div>
+    <div class="form-group"><label data-w="supervisorL"></label><input type="text" id="h-supervisor"/></div>
+    <div class="form-group"><label>المبلغ الفصلي (د.ب)</label><input type="number" id="h-amount" placeholder="10" min="0" step="0.001"/></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('halaqa-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="saveHalaqa()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Doura -->
+<div class="overlay" id="doura-overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="doura-modal-title"></h2>
+    <div class="form-group"><label>اسم الدورة أو النشاط</label><input type="text" id="d-name"/></div>
+    <div class="form-group"><label>تاريخ البدء (اختياري)</label><input type="text" id="d-date" placeholder="مثال: يوليو 2026"/></div>
+    <div class="form-group"><label>ملاحظة (اختياري)</label><input type="text" id="d-note"/></div>
+    <div class="form-group">
+      <label>الأقسام والرسوم</label>
+      <div id="d-sections-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <button type="button" class="btn sm" onclick="addSectionRow()">+ إضافة قسم</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('doura-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="saveDoura()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Doura person (enrollment) -->
+<div class="overlay" id="person-overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="person-title"></h2>
+    <div class="form-group"><label>الاسم</label><input type="text" id="p-name"/></div>
+    <div class="form-group"><label>رقم الهاتف</label><input type="text" id="p-phone" placeholder="3XXXXXXX" dir="ltr" inputmode="numeric"/></div>
+    <div class="form-group"><label>الرقم الشخصي (اختياري)</label><input type="text" id="p-personalid" dir="ltr" inputmode="numeric"/></div>
+    <div class="form-group"><label>اسم المركز (اختياري)</label><input type="text" id="p-center" placeholder="للمسجلين من خارج المركز"/></div>
+    <div class="form-group"><label>القسم</label><select id="p-section"></select></div>
+    <div class="form-group"><label>ملاحظة (اختياري)</label><input type="text" id="p-note"/></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('person-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="savePerson()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Enroll existing student into doura -->
+<div class="overlay" id="enroll-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:400px;">
+    <h2>🌟 تسجيل في دورة</h2>
+    <div id="enroll-name" style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--green-dark);"></div>
+    <div class="form-group"><label>الدورة</label><select id="enroll-doura" onchange="fillEnrollSections()"></select></div>
+    <div class="form-group"><label>القسم</label><select id="enroll-section"></select></div>
+    <div class="form-group"><label>ملاحظة (اختياري)</label><input type="text" id="enroll-note"/></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('enroll-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="confirmEnroll()">✅ تسجيل</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fee type (shared) -->
+<div class="overlay" id="feetype-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:380px;">
+    <h2>⚙ نوع الرسوم</h2>
+    <div id="ft-info" class="info-box"></div>
+    <div class="form-group">
+      <label>نوع الرسوم</label>
+      <select id="ft-select" onchange="updateFtFields()">
+        <option value="normal">عادي — المبلغ الكامل</option>
+        <option value="exempt">إعفاء — صفر</option>
+        <option value="reduced">رسوم مخفضة</option>
+        <option value="sponsored">بكفالة</option>
+        <option value="installment">تقسيط</option>
+      </select>
+    </div>
+    <div class="form-group" id="ft-amount-group" style="display:none;">
+      <label id="ft-amount-label">المبلغ (د.ب)</label>
+      <input type="number" id="ft-amount" min="0" step="0.001"/>
+    </div>
+    <div class="form-group" id="ft-inst-group" style="display:none;">
+      <label>عدد الدفعات</label>
+      <select id="ft-inst" onchange="updateFtFields()">
+        <option value="2">2 دفعات</option><option value="3">3 دفعات</option><option value="4">4 دفعات</option><option value="5">5 دفعات</option><option value="6">6 دفعات</option>
+      </select>
+      <div class="hint" id="ft-inst-preview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('feetype-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="saveFeeType()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Renewal -->
+<div class="overlay" id="renewal-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:400px;">
+    <h2>🔄 تجديد الفصل</h2>
+    <div class="info-box">الفصل الحالي: <strong id="renewal-current"></strong></div>
+    <div class="form-group"><label>الفصل الجديد</label><select id="renewal-select"></select></div>
+    <div id="renewal-summary" class="info-box"></div>
+    <div class="warn-box">سيتم تنزيل نسخة احتياطية تلقائياً قبل التجديد، ثم تصفير دفعات الحلقات (بما فيها الأقساط) لكل <span data-w="studentsAll"></span> <span data-w="activePl"></span>.</div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('renewal-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="confirmRenewal()">✅ تأكيد التجديد</button>
+    </div>
+  </div>
+</div>
+
+<!-- Center settings -->
+<div class="overlay" id="settings-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:420px;">
+    <h2>⚙ إعدادات المركز</h2>
+    <div class="form-group"><label>اسم المركز</label><input type="text" id="cs-name"/></div>
+    <div class="form-group"><label>نوع المركز</label><select id="cs-gender"><option value="f">مركز بنات</option><option value="m">مركز بنين</option></select></div>
+    <div class="form-group">
+      <label>الشعار (اختياري)</label>
+      <div class="row-gap">
+        <label class="btn" style="cursor:pointer;">📷 اختيار صورة<input type="file" accept="image/*" onchange="pickLogo(event)" style="display:none"/></label>
+        <button class="btn sm danger" onclick="pendingLogo='';renderLogoPreview()">إزالة</button>
+        <span id="cs-logo-preview"></span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="cs-pin-toggle" style="width:auto;accent-color:var(--green);" onchange="$('cs-pin-wrap').style.display=this.checked?'block':'none'"/> رمز دخول PIN
+      </label>
+      <div id="cs-pin-wrap" style="display:none;margin-top:8px;">
+        <input type="password" id="cs-pin" placeholder="رمز جديد — 4 أرقام" dir="ltr" maxlength="4" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)" style="letter-spacing:8px;font-size:18px;text-align:center;"/>
+        <div class="hint">اتركه فارغاً للإبقاء على الرمز الحالي</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>تغيير كلمة المرور (اختياري)</label>
+      <input type="password" id="cs-cur-pass" placeholder="كلمة المرور الحالية" dir="ltr" style="margin-bottom:6px;" autocomplete="current-password"/>
+      <div style="display:flex;gap:6px;">
+        <input type="password" id="cs-new-pass" placeholder="الجديدة" dir="ltr" autocomplete="new-password"/>
+        <input type="password" id="cs-conf-pass" placeholder="تأكيد" dir="ltr" autocomplete="new-password"/>
+      </div>
+      <div class="hint">6 أحرف على الأقل — اتركها فارغة إذا لا تريد التغيير</div>
+    </div>
+    <div class="info-box" style="font-size:11px;" id="cs-account"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('settings-overlay')">إلغاء</button>
+      <button class="btn primary" id="cs-save-btn" onclick="saveSettingsModal()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- WhatsApp template -->
+<div class="overlay" id="msg-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:420px;">
+    <h2>✏ رسالة التذكير</h2>
+    <div class="form-group"><textarea id="wa-msg-text" rows="6" style="resize:vertical;"></textarea>
+      <div class="hint">يُضاف اسم الحلقة أو الدورة تلقائياً في آخر الرسالة.</div></div>
+    <div class="modal-footer">
+      <button class="btn sm" onclick="$('wa-msg-text').value=DEFAULT_MSG">↩ افتراضي</button>
+      <button class="btn" onclick="closeOverlay('msg-overlay')">إلغاء</button>
+      <button class="btn primary" onclick="saveMsgTemplate()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk WhatsApp -->
+<div class="overlay" id="bulk-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:460px;">
+    <h2>📲 تذكير المتأخرين بالدفع</h2>
+    <div class="info-box" style="white-space:pre-wrap;" id="bulk-msg-preview"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><button class="btn sm" onclick="closeOverlay('bulk-overlay');openMsgModal()">✏ تعديل الرسالة</button></div>
+    <div id="bulk-list" style="display:flex;flex-direction:column;gap:7px;max-height:360px;overflow-y:auto;"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeOverlay('bulk-overlay')">إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Import -->
+<div class="overlay" id="import-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:460px;">
+    <h2>📂 استيراد بيانات</h2>
+    <div id="imp-step1">
+      <div class="info-box">يقبل ملف النسخة الاحتياطية من <strong>النسخة القديمة</strong> (زر "حفظ البيانات يدوياً") أو من هذا النظام.</div>
+      <label class="btn primary block" style="cursor:pointer;">📂 اختيار ملف JSON<input type="file" accept=".json,application/json" onchange="importPick(event)" style="display:none"/></label>
+    </div>
+    <div id="imp-step2" style="display:none;">
+      <div id="imp-file" class="info-box"></div>
+      <table class="imp-table" style="margin-bottom:12px;"><thead><tr><th>البيان</th><th>في الملف</th><th>بعد الرفع</th></tr></thead><tbody id="imp-tbody"></tbody></table>
+      <div id="imp-warn"></div>
+      <div id="imp-progress" class="hint" style="margin-bottom:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('import-overlay')">إغلاق</button>
+      <button class="btn primary" id="imp-btn" style="display:none;" onclick="runImport()">✅ استيراد</button>
+    </div>
+  </div>
+</div>
+
+<!-- Excel import -->
+<div class="overlay" id="excel-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:500px;">
+    <h2>📊 استيراد مسجلين من Excel</h2>
+    <div class="form-group"><label>الدورة المستهدفة</label><select id="excel-doura" onchange="fillExcelSections()"></select></div>
+    <div class="form-group">
+      <label class="btn block" style="cursor:pointer;">📂 اختيار ملف Excel أو CSV<input type="file" accept=".xlsx,.xls,.csv" onchange="handleExcelFile(event)" style="display:none"/></label>
+      <div id="excel-file-name" class="hint" style="text-align:center;"></div>
+    </div>
+    <div id="excel-step2" style="display:none;">
+      <div class="form-group"><label>عمود الاسم *</label><select id="map-name"></select></div>
+      <div class="form-group"><label>عمود الهاتف</label><select id="map-phone"></select></div>
+      <div class="form-group"><label>عمود الرقم الشخصي</label><select id="map-personalid"></select></div>
+      <div class="form-group"><label>عمود اسم المركز</label><select id="map-center"></select></div>
+      <div class="form-group"><label>القسم</label><select id="excel-section"></select></div>
+      <div id="excel-preview" class="info-box" style="font-size:12px;max-height:150px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOverlay('excel-overlay')">إلغاء</button>
+      <button class="btn primary" id="excel-btn" style="display:none;" onclick="confirmExcelImport()">✅ استيراد</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="overlay" id="help-overlay" onclick="overlayClick(event)">
+  <div class="modal" style="width:440px;">
+    <h2 id="help-title" style="color:var(--green-dark);"></h2>
+    <div id="help-content"></div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn sm" onclick="closeOverlay('help-overlay');startTour()">🎯 جولة تعريفية</button>
+      <button class="btn primary sm" onclick="closeOverlay('help-overlay')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tour -->
+<div class="tour-overlay" id="tour-overlay">
+  <div class="tour-card">
+    <div class="tour-step-num" id="tour-step-num"></div>
+    <div class="tour-title" id="tour-title"></div>
+    <div class="tour-desc" id="tour-desc"></div>
+    <div class="tour-dots" id="tour-dots"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn primary" style="flex:1;justify-content:center;" id="tour-next" onclick="tourNext()">التالي</button>
+      <button class="tour-skip" onclick="endTour()">تخطي</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="btn" onclick="resolveConfirm(false)">إلغاء</button>
+      <button class="btn" id="confirm-ok" onclick="resolveConfirm(true)">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   متابعة ميزانية المركز — النسخة السحابية (markas-cloud)
+   رابط واحد · كل مركز بحسابه · ترخيص من جدول licenses
+   ===================================================================== */
+const APP_VERSION = '1.0.0';
+
+// ===================== FIREBASE =====================
+const firebaseConfig = {
+  apiKey: "AIzaSyBldn10xCykIMS_rWZzZwChIWsIEQ7Gt-I",
+  authDomain: "markas-cloud.firebaseapp.com",
+  projectId: "markas-cloud",
+  storageBucket: "markas-cloud.firebasestorage.app",
+  messagingSenderId: "317944674974",
+  appId: "1:317944674974:web:1b1f3d939609dd351a198f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+// العمل بدون إنترنت: التعديلات تُحفظ على الجهاز وتُرفع تلقائياً عند الاتصال
+db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('offline persistence:', e.code));
+const FV = firebase.firestore.FieldValue;
+
+// ===================== STATE =====================
+const COLS = ['halaqat', 'students', 'dourat', 'enrollments'];
+const D = { halaqat: [], students: [], dourat: [], enrollments: [] };
+let settings = {};
+let user = null, centerRef = null, unsubs = [], unsubLic = null;
+let loaded = {}, pending = {};
+let pinOk = false, pinBuffer = '';
+let curPage = 'students';
+const openCards = new Set();
+const SEMESTERS = ['الفصل الأول', 'الفصل الثاني', 'الفصل الصيفي'];
+const DEFAULT_MSG = 'السلام عليكم ورحمة الله وبركاته\nنذكّركم بسداد رسوم التسجيل\nجزاكم الله خيراً.';
+
+// ===================== HELPERS =====================
+const $ = id => document.getElementById(id);
+function uid() { return Math.random().toString(36).slice(2, 11) + Date.now().toString(36); }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function r3(n) { return Math.round((+n || 0) * 1000) / 1000; }
+function money(n) { return r3(n) + ' د.ب'; }
+function fmtDate(iso) { if (!iso) return ''; try { return new Date(iso).toLocaleDateString('ar-BH', { day:'2-digit', month:'2-digit', year:'numeric' }); } catch (e) { return ''; } }
+function todayStr() { return new Date().toLocaleDateString('ar-BH'); }
+function fileDate() { return new Date().toISOString().slice(0, 10); }
+function sortAr(arr, key = 'name') { return arr.slice().sort((a, b) => String(a[key] || '').localeCompare(String(b[key] || ''), 'ar')); }
+function debounce(fn, ms = 200) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function pctColor(p) { return p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--amber)' : 'var(--red)'; }
+// واتساب: الأرقام البحرينية 8 خانات ← يُضاف مفتاح 973
+function waPhone(p) { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.length === 8) d = '973' + d; return d; }
+function waLink(phone, text) { return `https://wa.me/${waPhone(phone)}?text=${encodeURIComponent(text)}`; }
+function reminderText(ref) { return (settings.waTemplate || DEFAULT_MSG) + (ref ? `\n(${ref})` : ''); }
+function pmIcon(m) { return m === 'cash' ? '· 💵' : m === 'benefit' ? '· 🏦' : ''; }
+function pmLabel(m) { return m === 'cash' ? '· 💵 كاش' : m === 'benefit' ? '· 🏦 بنفت' : ''; }
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ===================== GENDER WORDS =====================
+const WORDS = {
+  student:['طالبة','طالب'], studentsAll:['الطالبات','الطلاب'], studentsN:['طالبات','طلاب'], studentsTab:['الطالبات','الطلاب'],
+  emoji:['🌸','📗'], addStudent:['إضافة طالبة','إضافة طالب'],
+  teacherH:['المعلمة','المعلم'], supervisorH:['المشرفة','المشرف'],
+  teacherL:['اسم المعلمة','اسم المعلم'], supervisorL:['اسم المشرفة','اسم المشرف'],
+  paid:['دفعت','دفع'], notPaid:['لم تدفع','لم يدفع'], late:['متأخرة','متأخر'], latePl:['متأخرات','متأخرين'],
+  paused:['متوقفة','متوقف'], complete:['مكتملة','مكتمل'], exempt:['معفية','معفى'],
+  paidPl:['دفعن','دفعوا'], notPaidPl:['لم يدفعن','لم يدفعوا'], activePl:['النشطات','النشطين'],
+  registeredPl:['المسجلات','المسجلين'], registered:['مسجلة','مسجل']
+};
+function isM() { return settings.gender === 'm'; }
+function w(k) { const v = WORDS[k]; return v ? v[isM() ? 1 : 0] : k; }
+function applyWords() { document.querySelectorAll('[data-w]').forEach(el => el.textContent = w(el.dataset.w)); }
+
+// ===================== UI PRIMITIVES =====================
+function toast(msg, type = 'success', ms = 3000) {
+  const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg;
+  $('toast-container').appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, ms);
+}
+let _confirmResolve = null;
+function showConfirm(title, msg, okText = 'تأكيد', okClass = 'danger', icon = '⚠️') {
+  return new Promise(res => {
+    _confirmResolve = res;
+    $('confirm-icon').textContent = icon; $('confirm-title').textContent = title; $('confirm-msg').textContent = msg;
+    $('confirm-ok').textContent = okText; $('confirm-ok').className = 'btn ' + okClass;
+    $('confirm-overlay').classList.add('open');
+  });
+}
+function resolveConfirm(v) { $('confirm-overlay').classList.remove('open'); if (_confirmResolve) { _confirmResolve(v); _confirmResolve = null; } }
+function openOverlay(id) { $(id).classList.add('open'); }
+function closeOverlay(id) { $(id).classList.remove('open'); }
+function overlayClick(e) { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if ($('lock-screen').style.display === 'flex' && $('lock-pad-wrap').style.display !== 'none') {
+    if (e.key >= '0' && e.key <= '9') pinPress(e.key); else if (e.key === 'Backspace') pinDel();
+    return;
+  }
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open'));
+});
+function toggleDropdown() { $('main-dropdown-menu').classList.toggle('open'); }
+function closeDropdown() { $('main-dropdown-menu').classList.remove('open'); }
+document.addEventListener('click', e => { const dd = $('main-dropdown'); if (dd && !dd.contains(e.target)) closeDropdown(); });
+
+const SCREENS = ['boot-screen', 'login-screen', 'suspended-screen', 'setup-screen', 'app'];
+function show(id) { SCREENS.forEach(s => $(s).style.display = s === id ? (s === 'app' ? 'block' : 'flex') : 'none'); }
+function boot(msg) { $('boot-msg').textContent = msg; show('boot-screen'); }
+
+// ===================== AUTH =====================
+function toggleLoginPass() {
+  const i = $('login-password'); const show_ = i.type === 'password';
+  i.type = show_ ? 'text' : 'password'; $('login-eye').textContent = show_ ? '🙈' : '👁';
+}
+async function doLogin() {
+  const email = $('login-email').value.trim(), pass = $('login-password').value;
+  const err = $('login-error'), btn = $('login-btn');
+  if (!email || !pass) { err.textContent = 'يرجى إدخال البريد وكلمة المرور'; return; }
+  btn.disabled = true; btn.textContent = '⏳ جارٍ الدخول...'; err.textContent = '';
+  try { await auth.signInWithEmailAndPassword(email, pass); $('login-password').value = ''; }
+  catch (e) {
+    btn.disabled = false; btn.textContent = 'دخول';
+    const m = {
+      'auth/user-not-found':'البريد الإلكتروني غير مسجل', 'auth/wrong-password':'كلمة المرور غير صحيحة',
+      'auth/invalid-email':'صيغة البريد غير صحيحة', 'auth/too-many-requests':'محاولات كثيرة — انتظر قليلاً ثم حاول',
+      'auth/invalid-credential':'البريد أو كلمة المرور غير صحيحة', 'auth/user-disabled':'هذا الحساب موقوف — تواصل مع الإدارة',
+      'auth/network-request-failed':'لا يوجد اتصال بالإنترنت'
+    };
+    err.textContent = m[e.code] || 'تعذر تسجيل الدخول';
+  }
+}
+async function forgotPassword() {
+  const email = $('login-email').value.trim();
+  if (!email) { $('login-error').textContent = 'اكتب البريد الإلكتروني أولاً ثم اضغط "نسيت كلمة المرور"'; return; }
+  try { await auth.sendPasswordResetEmail(email); toast('✅ تم إرسال رابط إعادة التعيين إلى بريدك'); }
+  catch (e) { $('login-error').textContent = 'تعذر الإرسال — تأكد من البريد'; }
+}
+async function doLogout() {
+  const ok = await showConfirm('تسجيل الخروج', 'تأكيد تسجيل الخروج من هذا الجهاز؟', 'خروج', 'danger', '🚪');
+  if (ok) auth.signOut();
+}
+function reauth(password) {
+  const cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+  return user.reauthenticateWithCredential(cred);
+}
+
+function licenseOk(l) {
+  if (!l || l.active !== true) return false;
+  if (l.expiresAt && typeof l.expiresAt.toDate === 'function' && l.expiresAt.toDate() < new Date()) return false;
+  return true;
+}
+function showSuspended(lic) {
+  const expired = lic && lic.active === true && lic.expiresAt;
+  $('susp-title').textContent = expired ? 'انتهى الاشتراك' : 'الاشتراك غير مفعّل';
+  $('susp-email').textContent = user ? user.email : '';
+  show('suspended-screen');
+}
+
+auth.onAuthStateChanged(u => {
+  stopAll();
+  user = u; pinOk = false;
+  if (!u) {
+    $('login-btn').disabled = false; $('login-btn').textContent = 'دخول';
+    show('login-screen'); return;
+  }
+  boot('جارٍ التحقق من الاشتراك...');
+  unsubLic = db.collection('licenses').doc(u.uid).onSnapshot(snap => {
+    if (!snap.exists && snap.metadata.fromCache) { boot('بانتظار الاتصال بالإنترنت...'); return; }
+    const lic = snap.exists ? snap.data() : null;
+    if (!licenseOk(lic)) { stopData(); showSuspended(lic); return; }
+    if (!centerRef) startData();
+  }, err => { console.error('license', err); stopData(); showSuspended(null); });
+});
+
+// ===================== DATA (REAL-TIME) =====================
+function startData() {
+  centerRef = db.collection('centers').doc(user.uid);
+  loaded = {}; pending = {};
+  boot('جارٍ تحميل البيانات...');
+  unsubs.push(centerRef.onSnapshot({ includeMetadataChanges: true }, snap => {
+    if (!snap.exists && snap.metadata.fromCache) return;
+    settings = snap.exists ? snap.data() : {};
+    loaded.settings = true; pending.settings = snap.metadata.hasPendingWrites;
+    onData();
+  }, onListenErr));
+  COLS.forEach(c => unsubs.push(centerRef.collection(c).onSnapshot({ includeMetadataChanges: true }, snap => {
+    D[c] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    loaded[c] = true; pending[c] = snap.metadata.hasPendingWrites;
+    onData();
+  }, onListenErr)));
+}
+function stopData() {
+  unsubs.forEach(f => { try { f(); } catch (e) {} });
+  unsubs = []; centerRef = null; settings = {};
+  COLS.forEach(c => D[c] = []); openCards.clear();
+  $('lock-screen').style.display = 'none';
+}
+function stopAll() { stopData(); if (unsubLic) { unsubLic(); unsubLic = null; } }
+function onListenErr(e) {
+  console.error(e);
+  if (e.code === 'permission-denied') { stopData(); showSuspended(null); }
+  else toast('⚠️ تعذر تحميل البيانات: ' + e.code, 'error', 4000);
+}
+function onData() {
+  updateSync();
+  if (!['settings', ...COLS].every(k => loaded[k])) return;
+  if (!settings.centerName) { openSetup(); return; }
+  if ($('app').style.display !== 'block') {
+    show('app'); applyWords();
+    if (settings.pin && !pinOk) openLock();
+    maybeStartTour();
+  }
+  applyCenter();
+  scheduleRender();
+}
+let _renderQueued = false;
+function scheduleRender() {
+  if (_renderQueued) return; _renderQueued = true;
+  requestAnimationFrame(() => { _renderQueued = false; renderCurrent(); });
+}
+function renderCurrent() {
+  if ($('app').style.display !== 'block') return;
+  if (curPage === 'students') renderStudents();
+  else if (curPage === 'halaqat') renderHalaqat();
+  else if (curPage === 'dourat') renderDourat();
+  else if (curPage === 'reports') renderReports();
+  else if (curPage === 'archive') renderArchive();
+}
+function updateSync() {
+  const el = $('sync'); if (!el) return;
+  const p = Object.values(pending).some(Boolean);
+  if (!navigator.onLine) { el.textContent = '🟠 غير متصل · يُرفع عند الاتصال'; el.className = 'sync warn'; }
+  else if (p) { el.textContent = '⏳ جارٍ الحفظ...'; el.className = 'sync'; }
+  else { el.textContent = '🟢 محفوظ'; el.className = 'sync ok'; }
+}
+window.addEventListener('online', updateSync);
+window.addEventListener('offline', updateSync);
+
+// ===================== WRITES (مستند لكل سجل) =====================
+function col(c) { return centerRef.collection(c); }
+function clean(o) { const { id, updatedAt, ...rest } = o; return JSON.parse(JSON.stringify(rest)); }
+function writeErr(e) {
+  console.error(e);
+  toast(e.code === 'permission-denied' ? '⛔ لا توجد صلاحية — تحقق من الاشتراك' : '⚠️ تعذر الحفظ: ' + (e.code || e.message), 'error', 4000);
+}
+function putDoc(c, o) { if (!o.id) o.id = uid(); col(c).doc(o.id).set({ ...clean(o), updatedAt: FV.serverTimestamp() }).catch(writeErr); return o.id; }
+function patchDoc(c, id, data) { col(c).doc(id).update({ ...JSON.parse(JSON.stringify(data)), updatedAt: FV.serverTimestamp() }).catch(writeErr); }
+function delDoc(c, id) { col(c).doc(id).delete().catch(writeErr); }
+function saveSettings(p) { return centerRef.set({ ...p, updatedAt: FV.serverTimestamp() }, { merge: true }).catch(writeErr); }
+// دفعات Firestore (حد 500 عملية) — awaitEach للاستيراد فقط
+async function commitOps(ops, onProgress) {
+  for (let i = 0; i < ops.length; i += 400) {
+    const b = db.batch();
+    ops.slice(i, i + 400).forEach(op => {
+      const ref = col(op.c).doc(op.id);
+      if (op.type === 'delete') b.delete(ref);
+      else if (op.type === 'update') b.update(ref, op.data);
+      else b.set(ref, op.data);
+    });
+    const p = b.commit();
+    if (onProgress) { await p; onProgress(Math.min(i + 400, ops.length), ops.length); }
+    else p.catch(writeErr);
+  }
+}
+
+// ===================== LOOKUPS & FEES =====================
+const hById = id => D.halaqat.find(h => h.id === id);
+const sById = id => D.students.find(s => s.id === id);
+const dById = id => D.dourat.find(d => d.id === id);
+const eById = id => D.enrollments.find(e => e.id === id);
+const activeHalaqat = () => sortAr(D.halaqat.filter(h => !h.archived));
+const activeDourat = () => sortAr(D.dourat.filter(d => !d.archived));
+function sectionsOf(d) { return (d && Array.isArray(d.sections) && d.sections.length) ? d.sections : [{ id: 'default', name: 'عام', amount: 0 }]; }
+function sectionOf(e) { const secs = sectionsOf(dById(e.douraId)); return secs.find(s => s.id === e.sectionId) || secs[0]; }
+function enrollBase(e) { return +sectionOf(e).amount || 0; }
+function entryBase(sh) { const h = hById(sh.hid); return h ? +h.amount || 0 : 0; }
+function effAmt(e, base) {
+  if (e.feeType === 'exempt') return 0;
+  if (e.feeType === 'reduced' || e.feeType === 'sponsored') return +e.customAmount || 0;
+  return base;
+}
+// تفصيل موحّد لأي سجل رسوم (حلقة أو دورة) — يحسب دفعات التقسيط الجزئية
+function breakdown(e, base) {
+  const r = { expected: effAmt(e, base), paid: 0, cash: 0, benefit: 0, other: 0, settled: false, noReminder: false };
+  const add = (amt, m) => { r.paid += amt; if (m === 'cash') r.cash += amt; else if (m === 'benefit') r.benefit += amt; else r.other += amt; };
+  const ft = e.feeType || 'normal';
+  if (ft === 'exempt') { r.settled = true; r.noReminder = true; }
+  else if (ft === 'sponsored') { add(r.expected, null); r.settled = true; r.noReminder = true; }
+  else if (ft === 'installment' && Array.isArray(e.installments) && e.installments.length) {
+    e.installments.forEach(i => { if (i.paid) add(+i.amount || 0, i.paymentMethod); });
+    r.settled = e.installments.every(i => i.paid);
+  } else { if (e.paid) add(r.expected, e.paymentMethod); r.settled = !!e.paid; }
+  ['paid', 'cash', 'benefit', 'other'].forEach(k => r[k] = r3(r[k]));
+  r.remaining = r3(r.expected - r.paid);
+  return r;
+}
+function sumInto(t, b) { ['expected', 'paid', 'cash', 'benefit', 'other', 'remaining'].forEach(k => t[k] = r3((t[k] || 0) + b[k])); }
+function studentEntries(s) { return (s.halaqat || []).filter(sh => { const h = hById(sh.hid); return h && !h.archived; }); }
+function studentSum(s) {
+  const t = { expected: 0, paid: 0, cash: 0, benefit: 0, other: 0, remaining: 0, unsettled: 0 };
+  studentEntries(s).forEach(sh => { const b = breakdown(sh, entryBase(sh)); sumInto(t, b); if (!b.settled) t.unsettled++; });
+  return t;
+}
+function buildInstallments(total, n) {
+  const per = Math.floor(total / n * 1000) / 1000;
+  return Array.from({ length: n }, (_, i) => ({ idx: i + 1, amount: i === n - 1 ? r3(total - per * (n - 1)) : per, paid: false, paidAt: null, paymentMethod: null }));
+}
+function splitBadges(c, b, o) {
+  const p = [];
+  if (c) p.push(`<span class="badge cash">💵 ${money(c)}</span>`);
+  if (b) p.push(`<span class="badge blue">🏦 ${money(b)}</span>`);
+  if (o) p.push(`<span class="badge muted">📋 ${money(o)}</span>`);
+  return p.join(' ');
+}
+function feeLabel(e, eff) {
+  switch (e.feeType) {
+    case 'exempt': return `<span class="badge muted">${w('exempt')}</span>`;
+    case 'reduced': return `<span class="badge amber">مخفضة ${money(eff)}</span>`;
+    case 'sponsored': return `<span class="badge blue">بكفالة ${money(eff)}</span>`;
+    case 'installment': { const ins = e.installments || []; return `<span class="badge orange">📆 تقسيط ${ins.filter(i => i.paid).length}/${ins.length}</span>`; }
+    default: return '';
+  }
+}
+
+// ===================== CENTER / SETUP =====================
+function fillSemesterSelect(id, val) { $(id).innerHTML = SEMESTERS.map(s => `<option value="${s}"${s === val ? ' selected' : ''}>${s}</option>`).join(''); }
+function openSetup() { fillSemesterSelect('setup-semester', SEMESTERS[0]); show('setup-screen'); }
+function saveSetup() {
+  const name = $('setup-name').value.trim();
+  const pinOn = $('setup-pin-toggle').checked, pin = $('setup-pin').value.trim();
+  if (!name) { toast('يرجى إدخال اسم المركز', 'warn'); return; }
+  if (pinOn && !/^\d{4}$/.test(pin)) { toast('رمز الدخول يجب أن يكون 4 أرقام', 'warn'); return; }
+  pinOk = true;
+  saveSettings({ centerName: name, gender: $('setup-gender').value, semester: $('setup-semester').value, pin: pinOn ? pin : '', waTemplate: DEFAULT_MSG, createdAt: FV.serverTimestamp() });
+}
+function applyCenter() {
+  $('topbar-name').textContent = settings.centerName || 'مركز التحفيظ';
+  $('semester-label').textContent = settings.semester || '';
+  $('topbar-logo').innerHTML = settings.logo ? `<img src="${esc(settings.logo)}" alt=""/>` : '📖';
+  applyWords();
+}
+
+// ===================== PIN LOCK =====================
+function openLock() {
+  pinBuffer = ''; updatePinDots();
+  $('lock-subtitle').textContent = settings.centerName || '';
+  hidePinForgot();
+  $('lock-screen').style.display = 'flex';
+}
+function pinPress(d) { if (pinBuffer.length >= 4) return; pinBuffer += d; updatePinDots(); if (pinBuffer.length === 4) setTimeout(checkPin, 120); }
+function pinDel() { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); $('lock-error').textContent = ''; }
+function updatePinDots(state) {
+  for (let i = 0; i < 4; i++) { const d = $('dot-' + i); d.className = 'pin-dot' + (state === 'error' ? ' error' : i < pinBuffer.length ? ' filled' : ''); }
+}
+function checkPin() {
+  if (pinBuffer === String(settings.pin || '')) { pinOk = true; $('lock-screen').style.display = 'none'; pinBuffer = ''; updatePinDots(); }
+  else { updatePinDots('error'); $('lock-error').textContent = '❌ رمز خاطئ'; setTimeout(() => { pinBuffer = ''; updatePinDots(); $('lock-error').textContent = ''; }, 900); }
+}
+function showPinForgot() { $('lock-pad-wrap').style.display = 'none'; $('lock-forgot-wrap').style.display = 'block'; $('lock-pass').value = ''; $('lock-pass-err').textContent = ''; $('lock-pass').focus(); }
+function hidePinForgot() { $('lock-pad-wrap').style.display = 'block'; $('lock-forgot-wrap').style.display = 'none'; }
+async function pinForgotSubmit() {
+  const p = $('lock-pass').value; if (!p) return;
+  try { await reauth(p); pinOk = true; $('lock-screen').style.display = 'none'; toast('✅ تم التحقق — يمكن تغيير الرمز من الإعدادات'); }
+  catch (e) { $('lock-pass-err').textContent = '❌ كلمة المرور غير صحيحة'; }
+}
+
+// ===================== SETTINGS MODAL =====================
+let pendingLogo = '';
+function openSettings() {
+  $('cs-name').value = settings.centerName || '';
+  $('cs-gender').value = settings.gender || 'f';
+  pendingLogo = settings.logo || ''; renderLogoPreview();
+  $('cs-pin-toggle').checked = !!settings.pin;
+  $('cs-pin-wrap').style.display = settings.pin ? 'block' : 'none';
+  ['cs-pin', 'cs-cur-pass', 'cs-new-pass', 'cs-conf-pass'].forEach(id => $(id).value = '');
+  $('cs-account').innerHTML = `الحساب: <span dir="ltr">${esc(user.email)}</span> · الإصدار ${APP_VERSION}`;
+  openOverlay('settings-overlay');
+}
+function renderLogoPreview() { $('cs-logo-preview').innerHTML = pendingLogo ? `<img src="${esc(pendingLogo)}" class="logo-preview"/>` : ''; }
+function resizeImage(file, max = 256) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const sc = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = rej; img.src = r.result;
+    };
+    r.onerror = rej; r.readAsDataURL(file);
+  });
+}
+async function pickLogo(ev) {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try { pendingLogo = await resizeImage(f); renderLogoPreview(); } catch (e) { toast('تعذر قراءة الصورة', 'error'); }
+}
+async function saveSettingsModal() {
+  const name = $('cs-name').value.trim();
+  const pinOn = $('cs-pin-toggle').checked, newPin = $('cs-pin').value.trim();
+  const cur = $('cs-cur-pass').value, np = $('cs-new-pass').value, cp = $('cs-conf-pass').value;
+  if (!name) { toast('يرجى إدخال اسم المركز', 'warn'); return; }
+  if (pinOn && newPin && !/^\d{4}$/.test(newPin)) { toast('رمز الدخول يجب أن يكون 4 أرقام', 'warn'); return; }
+  if (pinOn && !newPin && !settings.pin) { toast('أدخل رمز PIN من 4 أرقام', 'warn'); return; }
+  if (np) {
+    if (np.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'warn'); return; }
+    if (np !== cp) { toast('كلمة المرور وتأكيدها غير متطابقتين', 'warn'); return; }
+    if (!cur) { toast('أدخل كلمة المرور الحالية', 'warn'); return; }
+    const btn = $('cs-save-btn'); btn.disabled = true;
+    try { await reauth(cur); await user.updatePassword(np); toast('✅ تم تغيير كلمة المرور'); }
+    catch (e) { btn.disabled = false; toast(e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' ? '❌ كلمة المرور الحالية غير صحيحة' : '❌ تعذر تغيير كلمة المرور', 'error'); return; }
+    btn.disabled = false;
+  }
+  const pin = !pinOn ? '' : (newPin || settings.pin || '');
+  saveSettings({ centerName: name, gender: $('cs-gender').value, logo: pendingLogo || '', pin });
+  closeOverlay('settings-overlay'); toast('✅ تم حفظ الإعدادات');
+}
+
+// ===================== WHATSAPP =====================
+function openMsgModal() { $('wa-msg-text').value = settings.waTemplate || DEFAULT_MSG; openOverlay('msg-overlay'); }
+function saveMsgTemplate() {
+  const t = $('wa-msg-text').value.trim();
+  if (!t) { toast('الرسالة لا يمكن أن تكون فارغة', 'warn'); return; }
+  saveSettings({ waTemplate: t }); closeOverlay('msg-overlay'); toast('✅ تم حفظ الرسالة');
+}
+function openBulk() {
+  const seen = new Set(), list = [];
+  sortAr(D.students).forEach(s => {
+    if (s.paused || !s.phone) return;
+    const late = studentEntries(s).filter(sh => { const b = breakdown(sh, entryBase(sh)); return !b.settled && !b.noReminder; });
+    if (!late.length || seen.has(s.phone)) return;
+    seen.add(s.phone); list.push({ s, refs: late.map(sh => hById(sh.hid).name).join('، ') });
+  });
+  if (!list.length) { toast('🎉 لا يوجد متأخرون عن الدفع'); return; }
+  $('bulk-msg-preview').textContent = settings.waTemplate || DEFAULT_MSG;
+  $('bulk-list').innerHTML = list.map(({ s, refs }) => `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--gray-bg);border-radius:var(--radius);gap:8px;">
+    <div><div style="font-size:14px;font-weight:500;">${esc(s.name)}</div><div class="hint">${esc(refs)}</div></div>
+    <a href="${waLink(s.phone, reminderText(refs))}" target="_blank" rel="noopener" class="btn wa sm">📲 إرسال</a></div>`).join('');
+  openOverlay('bulk-overlay');
+}
+
+// ===================== PAGES =====================
+function showPage(name) {
+  curPage = name;
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
+  renderCurrent();
+}
+function toggleCard(id) { const el = $(id); if (!el) return; el.classList.toggle('open'); if (el.classList.contains('open')) openCards.add(id); else openCards.delete(id); }
+
+// ===================== STUDENTS =====================
+const debouncedRender = debounce(() => renderStudents(), 220);
+function renderStats() {
+  const act = D.students.filter(s => !s.paused);
+  const T = { expected: 0, paid: 0, cash: 0, benefit: 0, other: 0, remaining: 0 }; let late = 0;
+  act.forEach(s => { const t = studentSum(s); sumInto(T, t); if (t.unsettled) late++; });
+  const paused = D.students.length - act.length;
+  const pct = T.expected > 0 ? Math.round(T.paid / T.expected * 100) : 0, col_ = pctColor(pct);
+  $('stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">إجمالي ${w('studentsAll')}</div><div class="stat-value">${D.students.length}${paused ? `<span style="font-size:13px;color:var(--text-muted);"> (⏸${paused})</span>` : ''}</div></div>
+    <div class="stat-card"><div class="stat-label">المبلغ المحصّل</div><div class="stat-value green">${money(T.paid)}</div><div style="margin-top:5px;">${splitBadges(T.cash, T.benefit, T.other)}</div><div class="stat-progress"><div class="stat-progress-fill" style="width:${pct}%;background:${col_};"></div></div></div>
+    <div class="stat-card"><div class="stat-label">المبلغ المتبقي</div><div class="stat-value red">${money(T.remaining)}</div></div>
+    <div class="stat-card"><div class="stat-label">${w('latePl')}</div><div class="stat-value amber">${late}</div></div>
+    <div class="stat-card"><div class="stat-label">نسبة التحصيل</div><div class="stat-value" style="color:${col_};">${pct}%</div><div class="stat-progress"><div class="stat-progress-fill" style="width:${pct}%;background:${col_};"></div></div></div>`;
+}
+function fillHalaqaFilter() {
+  const sel = $('filter-halaqa'), cur = sel.value || 'all';
+  sel.innerHTML = '<option value="all">كل الحلقات</option>' + activeHalaqat().map(h => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'all';
+}
+function renderStudents() {
+  renderStats(); fillHalaqaFilter();
+  const q = $('search').value.trim().toLowerCase(), fh = $('filter-halaqa').value, fp = $('filter-paid').value;
+  const list = sortAr(D.students.filter(s => {
+    if (q && ![s.name, s.phone, s.userid, s.personalid].some(v => String(v || '').toLowerCase().includes(q))) return false;
+    if (fh !== 'all' && !(s.halaqat || []).some(sh => sh.hid === fh)) return false;
+    if (fp === 'paused') return !!s.paused;
+    if (fp !== 'all') { const t = studentSum(s); if (fp === 'unpaid' && !t.unsettled) return false; if (fp === 'paid' && (t.unsettled || !studentEntries(s).length)) return false; }
+    return true;
+  }));
+  const box = $('students-list');
+  if (!list.length) {
+    box.innerHTML = q
+      ? `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-title">لا توجد نتائج</div><div class="empty-state-sub">لا نتائج لـ "<strong>${esc(q)}</strong>"</div></div>`
+      : `<div class="empty-state"><div class="empty-state-icon">${w('emoji')}</div><div class="empty-state-title">لا توجد سجلات بعد</div><div class="empty-state-sub">ابدأ بإضافة الحلقات من تبويب "الحلقات"<br/>ثم أضف ${w('studentsAll')}</div></div>`;
+    return;
+  }
+  box.innerHTML = list.map(studentCardHtml).join('');
+}
+function tH(sid, hid) { return `{k:'h',sid:'${esc(sid)}',hid:'${esc(hid)}'}`; }
+function tE(eid) { return `{k:'e',eid:'${esc(eid)}'}`; }
+function payBlockHtml(tStr, e, base, phone, ref) {
+  const b = breakdown(e, base);
+  if (b.noReminder) return `<span class="badge paid">✓ لا يلزم تذكير</span>`;
+  if (e.feeType === 'installment' && Array.isArray(e.installments) && e.installments.length) {
+    const ins = e.installments;
+    return `<div class="inst-wrap">${ins.map((it, i) => `<div class="installment-row">
+        <div><div class="installment-label">دفعة ${i + 1} من ${ins.length} — ${money(it.amount)}</div>${it.paid && it.paidAt ? `<div class="installment-date">📅 ${fmtDate(it.paidAt)} ${pmIcon(it.paymentMethod)}</div>` : ''}</div>
+        <div class="row-gap">${it.paid
+          ? `<span class="badge paid sm">✓ ${w('paid')}</span><button class="btn sm danger" onclick="startPay(${tStr},${i})">إلغاء</button>`
+          : `<span class="badge unpaid sm">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},${i})">✓ دفع</button>`}</div></div>`).join('')}
+      <div class="inst-sum">مدفوع ${money(b.paid)} من ${money(b.expected)}${phone && !b.settled ? ` · <a class="wa-inline" href="${waLink(phone, reminderText(ref))}" target="_blank" rel="noopener">📲 تذكير</a>` : ''}</div></div>`;
+  }
+  if (e.paid) return `<div class="paid-col"><span class="badge paid">✓ ${w('paid')}</span>${e.paidAt ? `<span class="paid-date">📅 ${fmtDate(e.paidAt)} ${pmLabel(e.paymentMethod)}</span>` : ''}</div><button class="btn sm danger" onclick="startPay(${tStr},-1)">إلغاء</button>`;
+  return `<span class="badge unpaid">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},-1)">✓ تأكيد دفع</button>${phone ? `<a href="${waLink(phone, reminderText(ref))}" target="_blank" rel="noopener" class="btn wa sm">📲</a>` : ''}`;
+}
+function entryRowHtml(s, sh) {
+  const h = hById(sh.hid), base = +h.amount || 0, eff = effAmt(sh, base), t = tH(s.id, sh.hid);
+  const orig = sh.feeType && !['normal', 'installment'].includes(sh.feeType) ? ` (الأصلي: ${money(base)})` : '';
+  return `<div class="halaqa-row${s.paused ? ' dim' : ''}">
+    <div><div class="halaqa-name-txt">${esc(h.name)} ${feeLabel(sh, eff)}</div><div class="halaqa-amount-txt">${money(eff)}${orig}</div></div>
+    <div class="row-gap">${payBlockHtml(t, sh, base, s.phone, h.name)}<button class="btn sm gear" onclick="openFeeType(${t})" title="نوع الرسوم">⚙</button></div></div>`;
+}
+function studentCardHtml(s) {
+  const entries = studentEntries(s), t = studentSum(s);
+  const status = s.paused ? `<span class="badge muted">⏸ ${w('paused')}</span>`
+    : !entries.length ? `<span class="badge amber">بدون حلقة</span>`
+    : t.unsettled ? `<span class="badge unpaid">${w('late')} ${money(t.remaining)}</span>`
+    : `<span class="badge paid">✓ ${w('complete')}</span>`;
+  const cid = 'sc-' + s.id;
+  const meta = [s.userid ? '#' + esc(s.userid) : '', esc(s.phone || ''), s.personalid ? '🆔' + esc(s.personalid) : ''].filter(Boolean).join('  ·  ');
+  return `<div class="student-card${s.paused ? ' paused' : ''}">
+    <div class="student-header" onclick="toggleCard('${esc(cid)}')">
+      <div style="flex:1;min-width:0;pointer-events:none;">
+        <div class="student-name">${esc(s.name)}</div>
+        <div class="student-phone" dir="ltr">${meta}</div>
+        ${s.note ? `<div class="student-note">📝 ${esc(s.note)}</div>` : ''}
+        <div style="margin-top:5px;">${entries.map(sh => `<span class="badge halaqa">${esc(hById(sh.hid).name)}</span>`).join('')}</div>
+      </div>
+      <div class="hdr-right">${status}<span class="chev">⌄</span></div>
+    </div>
+    <div class="student-body${openCards.has(cid) ? ' open' : ''}" id="${esc(cid)}">
+      ${entries.map(sh => entryRowHtml(s, sh)).join('') || '<div class="muted-txt">لا توجد حلقات مسجلة</div>'}
+      <div class="student-actions">
+        <button class="btn sm" onclick="openStudentModal('${esc(s.id)}')">✏ تعديل</button>
+        <button class="btn sm" style="color:var(--blue);" onclick="openEnrollModal('${esc(s.id)}')">🌟 تسجيل في دورة</button>
+        ${s.paused ? `<button class="btn sm confirm" onclick="togglePaused('${esc(s.id)}')">▶ تفعيل</button>` : `<button class="btn sm" onclick="togglePaused('${esc(s.id)}')">⏸ إيقاف مؤقت</button>`}
+        <button class="btn sm danger" onclick="deleteStudent('${esc(s.id)}')">🗑 حذف</button>
+      </div>
+    </div></div>`;
+}
+function togglePaused(id) { const s = sById(id); if (s) patchDoc('students', id, { paused: !s.paused }); }
+async function deleteStudent(id) {
+  const s = sById(id); if (!s) return;
+  const ok = await showConfirm('حذف السجل', `حذف "${s.name}" نهائياً؟\nلا يمكن التراجع.`, '🗑 حذف', 'danger', '🗑');
+  if (!ok) return; delDoc('students', id); openCards.delete('sc-' + id); toast(`تم حذف ${s.name}`, 'info');
+}
+
+let editStudentId = null;
+function openStudentModal(id = null) {
+  editStudentId = id; const s = id ? sById(id) : null;
+  $('student-modal-title').textContent = s ? 'تعديل البيانات' : w('addStudent');
+  $('f-name').value = s ? s.name || '' : ''; $('f-userid').value = s ? s.userid || '' : '';
+  $('f-personalid').value = s ? s.personalid || '' : ''; $('f-phone').value = s ? s.phone || '' : ''; $('f-note').value = s ? s.note || '' : '';
+  const hs = activeHalaqat(), enrolled = s ? (s.halaqat || []).map(sh => sh.hid) : [];
+  $('halaqa-checklist').innerHTML = hs.length ? hs.map(h => `<label class="halaqa-check-item"><input type="checkbox" value="${esc(h.id)}"${enrolled.includes(h.id) ? ' checked' : ''}/><span class="halaqa-check-label">${esc(h.name)}</span><span class="halaqa-check-price">${money(h.amount)}</span></label>`).join('')
+    : '<div class="muted-txt" style="padding:8px;">أضف حلقات أولاً من تبويب "الحلقات"</div>';
+  openOverlay('student-overlay'); $('f-name').focus();
+}
+function saveStudent() {
+  const name = $('f-name').value.trim(), userid = $('f-userid').value.trim(), personalid = $('f-personalid').value.trim();
+  const phone = $('f-phone').value.trim(), note = $('f-note').value.trim();
+  if (!name) { toast('يرجى إدخال الاسم', 'warn'); return; }
+  if (userid && !/^\d{8}$/.test(userid)) { toast('رقم المستخدم يجب أن يكون 8 أرقام', 'warn'); return; }
+  if (phone && !/^\d{8}$/.test(phone)) { toast('رقم الهاتف يجب أن يكون 8 أرقام', 'warn'); return; }
+  if (userid) { const dup = D.students.find(s => s.userid === userid && s.id !== editStudentId); if (dup) { toast(`رقم المستخدم مستخدم لـ: ${dup.name}`, 'warn', 4000); return; } }
+  const checked = [...document.querySelectorAll('#halaqa-checklist input:checked')].map(c => c.value);
+  if (editStudentId) {
+    const s = sById(editStudentId); if (!s) return;
+    const existing = s.halaqat || [];
+    // الحلقات المؤرشفة تبقى كما هي، والنشطة حسب الاختيار
+    const kept = existing.filter(sh => { const h = hById(sh.hid); return h && h.archived; });
+    const active = checked.map(hid => existing.find(sh => sh.hid === hid) || { hid, paid: false, paidAt: null });
+    patchDoc('students', s.id, { name, userid, personalid, phone, note, halaqat: [...kept, ...active] });
+    toast('✅ تم تحديث البيانات');
+  } else {
+    putDoc('students', { name, userid, personalid, phone, note, paused: false, halaqat: checked.map(hid => ({ hid, paid: false, paidAt: null })), createdAt: new Date().toISOString() });
+    toast('✅ تمت الإضافة');
+  }
+  closeOverlay('student-overlay');
+}
+
+// ===================== PAYMENTS (حلقات + دورات) =====================
+function getTarget(t) {
+  if (t.k === 'h') {
+    const s = sById(t.sid); const sh = s && (s.halaqat || []).find(x => x.hid === t.hid); const h = hById(t.hid);
+    if (!s || !sh || !h) return null;
+    return { entry: sh, base: +h.amount || 0, label: `${s.name} — ${h.name}`, save: () => patchDoc('students', s.id, { halaqat: s.halaqat }) };
+  }
+  const e = eById(t.eid); if (!e) return null; const d = dById(e.douraId);
+  return { entry: e, base: enrollBase(e), label: `${e.name} — ${d ? d.name : ''}`, save: () => putDoc('enrollments', e) };
+}
+let pendingPay = null;
+async function startPay(t, inst) {
+  const g = getTarget(t); if (!g) return; const e = g.entry;
+  const item = inst >= 0 ? (e.installments || [])[inst] : e; if (!item) return;
+  if (item.paid) {
+    const ok = await showConfirm('إلغاء الدفعة', `إلغاء تسجيل الدفع؟\n${g.label}`, 'إلغاء الدفعة', 'danger', '↩');
+    if (!ok) return;
+    const g2 = getTarget(t); if (!g2) return; const e2 = g2.entry; const it2 = inst >= 0 ? e2.installments[inst] : e2;
+    it2.paid = false; it2.paidAt = null; it2.paymentMethod = null;
+    if (inst >= 0) { e2.paid = false; e2.paidAt = null; e2.paymentMethod = null; }
+    g2.save(); toast('تم إلغاء الدفعة', 'info'); return;
+  }
+  pendingPay = { t, inst };
+  $('paymethod-info').textContent = g.label + (inst >= 0 ? ` · دفعة ${inst + 1} من ${e.installments.length} (${money(item.amount)})` : ` · ${money(effAmt(e, g.base))}`);
+  openOverlay('paymethod-overlay');
+}
+function confirmPayMethod(m) {
+  if (!pendingPay) return; const { t, inst } = pendingPay; pendingPay = null; closeOverlay('paymethod-overlay');
+  const g = getTarget(t); if (!g) return; const e = g.entry, now = new Date().toISOString();
+  if (inst >= 0) {
+    const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m;
+    if (e.installments.every(i => i.paid)) { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
+  } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
+  g.save(); toast(m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 بنفت');
+}
+
+// ===================== FEE TYPE =====================
+let feeTarget = null;
+function openFeeType(t) {
+  const g = getTarget(t); if (!g) return; feeTarget = t; const e = g.entry;
+  $('ft-info').textContent = `${g.label} · المبلغ الأصلي ${money(g.base)}`;
+  $('ft-select').value = e.feeType || 'normal'; $('ft-amount').value = e.customAmount || '';
+  $('ft-inst').value = String(Array.isArray(e.installments) && e.installments.length ? e.installments.length : 2);
+  updateFtFields(); openOverlay('feetype-overlay');
+}
+function updateFtFields() {
+  const t = $('ft-select').value; const g = feeTarget && getTarget(feeTarget);
+  $('ft-amount-group').style.display = (t === 'reduced' || t === 'sponsored') ? 'block' : 'none';
+  $('ft-inst-group').style.display = t === 'installment' ? 'block' : 'none';
+  $('ft-amount-label').textContent = t === 'sponsored' ? 'المبلغ المدفوع من الكفيل (د.ب)' : 'المبلغ المخفض (د.ب)';
+  if (t === 'installment' && g) { const ins = buildInstallments(g.base, +$('ft-inst').value); $('ft-inst-preview').textContent = `الدفعات: ${ins.map(i => r3(i.amount)).join(' + ')} = ${money(g.base)}`; }
+}
+async function saveFeeType() {
+  const g = getTarget(feeTarget); if (!g) return; const e = g.entry;
+  const t = $('ft-select').value, amt = parseFloat($('ft-amount').value) || 0, n = +$('ft-inst').value;
+  if ((t === 'reduced' || t === 'sponsored') && amt <= 0) { toast('أدخل المبلغ', 'warn'); return; }
+  if (t === 'installment') {
+    const same = e.feeType === 'installment' && Array.isArray(e.installments) && e.installments.length === n;
+    if (!same) {
+      const hadPaid = (e.installments || []).some(i => i.paid) || (e.paid && e.feeType !== 'installment');
+      if (hadPaid) { const ok = await showConfirm('إعادة بناء الأقساط', 'توجد دفعات مسجلة وسيتم تصفيرها. متابعة؟', 'متابعة', 'danger'); if (!ok) return; }
+      e.installments = buildInstallments(g.base, n);
+    }
+    e.paid = e.installments.every(i => i.paid);
+  } else {
+    e.installments = null;
+    if (t === 'exempt' || t === 'sponsored') { e.paid = false; e.paidAt = null; e.paymentMethod = null; }
+  }
+  e.feeType = t; e.customAmount = (t === 'reduced' || t === 'sponsored') ? amt : 0;
+  g.save(); closeOverlay('feetype-overlay'); toast('✅ تم حفظ نوع الرسوم');
+}
+
+// ===================== HALAQAT =====================
+function renderHalaqat() {
+  const tb = $('halaqat-tbody'), hs = activeHalaqat();
+  if (!hs.length) { tb.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📚</div><div class="empty-state-title">لا توجد حلقات بعد</div><div class="empty-state-sub">اضغط "+ إضافة حلقة" للبدء</div></div></td></tr>'; return; }
+  tb.innerHTML = hs.map((h, i) => {
+    const count = D.students.filter(s => (s.halaqat || []).some(sh => sh.hid === h.id)).length;
+    const time = h.time === 'صباحي' ? '☀️ صباحي' : h.time === 'مسائي' ? '🌙 مسائي' : '—';
+    return `<tr><td style="color:var(--text-muted);font-size:12px;">${i + 1}</td><td style="font-weight:600;">${esc(h.name)}</td>
+      <td style="color:var(--text-muted);">${esc(h.type || '—')}</td><td style="color:var(--text-muted);">${time}</td>
+      <td style="color:var(--text-muted);">${esc(h.teacher || '—')}</td><td style="color:var(--text-muted);">${esc(h.supervisor || '—')}</td>
+      <td>${money(h.amount)}</td><td>${count}</td>
+      <td><div class="row-gap"><button class="btn sm" onclick="openHalaqaModal('${esc(h.id)}')">✏ تعديل</button>
+      <button class="btn sm" style="color:var(--amber);" onclick="archiveHalaqa('${esc(h.id)}')">📦 أرشفة</button>
+      <button class="btn sm danger" onclick="deleteHalaqa('${esc(h.id)}')">🗑 حذف</button></div></td></tr>`;
+  }).join('');
+}
+let editHalaqaId = null;
+function openHalaqaModal(id = null) {
+  editHalaqaId = id; const h = id ? hById(id) : null;
+  $('halaqa-modal-title').textContent = h ? 'تعديل الحلقة' : 'إضافة حلقة جديدة';
+  $('h-name').value = h ? h.name || '' : ''; $('h-type').value = h ? h.type || '' : ''; $('h-time').value = h ? h.time || '' : '';
+  $('h-teacher').value = h ? h.teacher || '' : ''; $('h-supervisor').value = h ? h.supervisor || '' : ''; $('h-amount').value = h ? h.amount : '';
+  openOverlay('halaqa-overlay'); $('h-name').focus();
+}
+function saveHalaqa() {
+  const data = { name: $('h-name').value.trim(), type: $('h-type').value.trim(), time: $('h-time').value, teacher: $('h-teacher').value.trim(), supervisor: $('h-supervisor').value.trim(), amount: r3(parseFloat($('h-amount').value) || 0) };
+  if (!data.name) { toast('يرجى إدخال اسم الحلقة', 'warn'); return; }
+  if (editHalaqaId) patchDoc('halaqat', editHalaqaId, data);
+  else putDoc('halaqat', { ...data, archived: false });
+  closeOverlay('halaqa-overlay'); toast(editHalaqaId ? '✅ تم تحديث الحلقة' : '✅ تمت إضافة الحلقة');
+}
+async function archiveHalaqa(id) {
+  const h = hById(id); if (!h) return;
+  const ok = await showConfirm('أرشفة الحلقة', `أرشفة حلقة "${h.name}"؟\nتبقى البيانات ويمكن استعادتها من الأرشيف.`, '📦 أرشفة', 'primary', '📦');
+  if (ok) { patchDoc('halaqat', id, { archived: true, archivedAt: new Date().toISOString() }); toast('تم أرشفة الحلقة', 'info'); }
+}
+async function deleteHalaqa(id) {
+  const h = hById(id); if (!h) return;
+  const users = D.students.filter(s => (s.halaqat || []).some(sh => sh.hid === id));
+  const ok = await showConfirm('حذف الحلقة', users.length ? `هذه الحلقة فيها ${users.length} ${w('registered')}.\nالحذف يزيلها من سجلاتهم مع دفعاتها.\nالأفضل استخدام الأرشفة.` : `حذف حلقة "${h.name}"؟`, '🗑 حذف', 'danger', '🗑');
+  if (!ok) return;
+  const ops = users.map(s => ({ type: 'update', c: 'students', id: s.id, data: { halaqat: (s.halaqat || []).filter(sh => sh.hid !== id) } }));
+  ops.push({ type: 'delete', c: 'halaqat', id });
+  commitOps(ops); toast('تم حذف الحلقة', 'info');
+}
+
+// ===================== DOURAT =====================
+function calcDoura(d) {
+  const list = D.enrollments.filter(e => e.douraId === d.id);
+  const T = { expected: 0, paid: 0, cash: 0, benefit: 0, other: 0, remaining: 0 }; let settled = 0;
+  list.forEach(e => { const b = breakdown(e, enrollBase(e)); sumInto(T, b); if (b.settled) settled++; });
+  return { list, ...T, paidCount: settled, unpaidCount: list.length - settled };
+}
+function renderDourat() {
+  const act = activeDourat();
+  let n = 0, paid = 0, late = 0;
+  act.forEach(d => { const st = calcDoura(d); n += st.list.length; paid += st.paid; late += st.unpaidCount; });
+  $('dourat-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">الدورات النشطة</div><div class="stat-value">${act.length}</div></div>
+    <div class="stat-card"><div class="stat-label">إجمالي ${w('registeredPl')}</div><div class="stat-value">${n}</div></div>
+    <div class="stat-card"><div class="stat-label">المبلغ المحصّل</div><div class="stat-value green">${money(paid)}</div></div>
+    <div class="stat-card"><div class="stat-label">${w('notPaidPl')}</div><div class="stat-value red">${late}</div></div>`;
+  const box = $('dourat-list');
+  if (!act.length) { box.innerHTML = '<div class="empty">لا توجد دورات نشطة — أضف أول دورة 🌟</div>'; return; }
+  box.innerHTML = act.map(douraCardHtml).join('');
+}
+function douraCardHtml(d) {
+  const st = calcDoura(d), cid = 'dc-' + d.id, secs = sectionsOf(d);
+  const rows = sortAr(st.list).map(e => {
+    const base = enrollBase(e), eff = effAmt(e, base), sec = sectionOf(e), t = tE(e.id);
+    return `<div class="halaqa-row">
+      <div><div class="halaqa-name-txt">${esc(e.name)} ${feeLabel(e, eff)}</div>
+        <div class="halaqa-amount-txt">${esc(sec.name)} · ${money(eff)}${e.center ? ' · 🏫 ' + esc(e.center) : ''}${e.note ? ' · ' + esc(e.note) : ''}</div>
+        <div class="halaqa-amount-txt" dir="ltr" style="text-align:right;">${esc(e.phone || '')}</div></div>
+      <div class="row-gap">${payBlockHtml(t, e, base, e.phone, d.name)}
+        <button class="btn sm gear" onclick="openFeeType(${t})">⚙</button>
+        <button class="btn sm" onclick="openPersonModal('${esc(d.id)}','${esc(e.id)}')">✏</button>
+        <button class="btn sm danger" onclick="deleteEnrollment('${esc(e.id)}')">🗑</button></div></div>`;
+  }).join('');
+  const secSummary = secs.map(sec => `<span class="badge halaqa">${esc(sec.name)}: ${st.list.filter(e => sectionOf(e).id === sec.id).length} (${r3(sec.amount)} د.ب)</span>`).join(' ');
+  return `<div class="student-card doura">
+    <div class="student-header" onclick="toggleCard('${esc(cid)}')">
+      <div style="flex:1;pointer-events:none;">
+        <div class="student-name">🌟 ${esc(d.name)}</div>
+        <div class="student-phone">${d.date ? esc(d.date) + ' · ' : ''}${st.list.length} ${w('registered')} · ${w('paidPl')}: ${st.paidCount} · ${w('notPaidPl')}: ${st.unpaidCount}</div>
+        <div style="margin-top:5px;">${secSummary}</div>
+      </div>
+      <div class="hdr-right"><span class="badge amber">${r3(st.paid)}/${money(st.expected)}</span><span class="chev">⌄</span></div>
+    </div>
+    <div class="student-body${openCards.has(cid) ? ' open' : ''}" id="${esc(cid)}">
+      <div class="row-gap" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--gray-border);">
+        <button class="btn sm" onclick="openDouraModal('${esc(d.id)}')">✏ تعديل الدورة</button>
+        <button class="btn sm" style="color:var(--amber);" onclick="archiveDoura('${esc(d.id)}')">📦 أرشفة</button>
+        <button class="btn sm danger" onclick="deleteDoura('${esc(d.id)}')">🗑 حذف الدورة</button>
+      </div>
+      ${rows || `<div class="muted-txt" style="margin-bottom:10px;">لا يوجد ${w('registeredPl')} بعد</div>`}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-border);"><button class="btn sm primary" onclick="openPersonModal('${esc(d.id)}')">+ إضافة ${w('registered')}</button></div>
+    </div></div>`;
+}
+let editDouraId = null;
+function addSectionRow(sec = {}) {
+  const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px;align-items:center;'; row.dataset.id = sec.id || uid();
+  row.innerHTML = `<input type="text" placeholder="اسم القسم" value="${esc(sec.name || '')}" style="flex:1;" class="sec-name"/><input type="number" placeholder="المبلغ" value="${sec.amount ?? ''}" style="width:90px;" min="0" step="0.001" class="sec-amount"/><button type="button" class="btn sm danger" onclick="this.parentElement.remove()">✕</button>`;
+  $('d-sections-list').appendChild(row);
+}
+function openDouraModal(id = null) {
+  editDouraId = id; const d = id ? dById(id) : null;
+  $('doura-modal-title').textContent = d ? 'تعديل الدورة' : 'إضافة دورة / نشاط جديد';
+  $('d-name').value = d ? d.name || '' : ''; $('d-date').value = d ? d.date || '' : ''; $('d-note').value = d ? d.note || '' : '';
+  $('d-sections-list').innerHTML = '';
+  if (d) sectionsOf(d).forEach(addSectionRow); else addSectionRow({ name: 'عام' });
+  openOverlay('doura-overlay'); $('d-name').focus();
+}
+function saveDoura() {
+  const name = $('d-name').value.trim(); if (!name) { toast('يرجى إدخال اسم الدورة', 'warn'); return; }
+  const sections = [...$('d-sections-list').children].map((r, i) => ({ id: r.dataset.id, name: r.querySelector('.sec-name').value.trim() || 'قسم ' + (i + 1), amount: r3(parseFloat(r.querySelector('.sec-amount').value) || 0) }));
+  if (!sections.length) { toast('أضف قسماً واحداً على الأقل', 'warn'); return; }
+  const data = { name, date: $('d-date').value.trim(), note: $('d-note').value.trim(), sections };
+  if (editDouraId) patchDoc('dourat', editDouraId, data); else putDoc('dourat', { ...data, archived: false });
+  closeOverlay('doura-overlay'); toast(editDouraId ? '✅ تم تحديث الدورة' : '✅ تمت إضافة الدورة');
+}
+async function archiveDoura(id) { patchDoc('dourat', id, { archived: true, archivedAt: new Date().toISOString() }); toast('تم أرشفة الدورة', 'info'); }
+async function deleteDoura(id) {
+  const d = dById(id); if (!d) return;
+  const list = D.enrollments.filter(e => e.douraId === id);
+  const ok = await showConfirm('حذف الدورة', `حذف "${d.name}" مع ${list.length} سجل تسجيل؟\nلا يمكن التراجع.`, '🗑 حذف', 'danger', '🗑');
+  if (!ok) return;
+  commitOps([...list.map(e => ({ type: 'delete', c: 'enrollments', id: e.id })), { type: 'delete', c: 'dourat', id }]);
+  toast('تم حذف الدورة', 'info');
+}
+let personDouraId = null, editPersonId = null;
+function openPersonModal(douraId, eid = null) {
+  personDouraId = douraId; editPersonId = eid; const e = eid ? eById(eid) : null, d = dById(douraId);
+  $('person-title').textContent = e ? 'تعديل بيانات التسجيل' : `إضافة ${w('registered')} — ${d ? d.name : ''}`;
+  $('p-name').value = e ? e.name || '' : ''; $('p-phone').value = e ? e.phone || '' : ''; $('p-personalid').value = e ? e.personalid || '' : '';
+  $('p-center').value = e ? e.center || '' : ''; $('p-note').value = e ? e.note || '' : '';
+  $('p-section').innerHTML = sectionsOf(d).map(s => `<option value="${esc(s.id)}"${e && e.sectionId === s.id ? ' selected' : ''}>${esc(s.name)} — ${money(s.amount)}</option>`).join('');
+  openOverlay('person-overlay'); $('p-name').focus();
+}
+function savePerson() {
+  const data = { name: $('p-name').value.trim(), phone: $('p-phone').value.trim(), personalid: $('p-personalid').value.trim(), center: $('p-center').value.trim(), note: $('p-note').value.trim(), sectionId: $('p-section').value };
+  if (!data.name) { toast('يرجى إدخال الاسم', 'warn'); return; }
+  if (editPersonId) patchDoc('enrollments', editPersonId, data);
+  else putDoc('enrollments', { ...data, douraId: personDouraId, paid: false, paidAt: null });
+  openCards.add('dc-' + personDouraId); closeOverlay('person-overlay'); toast('✅ تم الحفظ');
+}
+async function deleteEnrollment(id) {
+  const e = eById(id); if (!e) return;
+  const ok = await showConfirm('حذف التسجيل', `حذف "${e.name}" من الدورة؟`, '🗑 حذف', 'danger', '🗑');
+  if (ok) delDoc('enrollments', id);
+}
+let enrollStudentId = null;
+function openEnrollModal(sid) {
+  const act = activeDourat(); if (!act.length) { toast('لا توجد دورات نشطة — أضف دورة أولاً', 'warn'); return; }
+  enrollStudentId = sid; const s = sById(sid);
+  $('enroll-name').textContent = s.name; $('enroll-note').value = '';
+  $('enroll-doura').innerHTML = act.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('');
+  fillEnrollSections(); openOverlay('enroll-overlay');
+}
+function fillEnrollSections() { const d = dById($('enroll-doura').value); $('enroll-section').innerHTML = sectionsOf(d).map(s => `<option value="${esc(s.id)}">${esc(s.name)} — ${money(s.amount)}</option>`).join(''); }
+function confirmEnroll() {
+  const d = dById($('enroll-doura').value), s = sById(enrollStudentId); if (!d || !s) return;
+  if (D.enrollments.some(e => e.douraId === d.id && (e.studentId === s.id || (s.phone && e.phone === s.phone && e.name === s.name)))) { toast('مسجل في هذه الدورة بالفعل', 'warn'); return; }
+  putDoc('enrollments', { douraId: d.id, studentId: s.id, name: s.name, phone: s.phone || '', personalid: s.personalid || '', center: '', note: $('enroll-note').value.trim(), sectionId: $('enroll-section').value, paid: false, paidAt: null });
+  closeOverlay('enroll-overlay'); toast(`✅ تم التسجيل في ${d.name}`);
+}
+
+// ===================== ARCHIVE =====================
+function renderArchive() {
+  const ah = sortAr(D.halaqat.filter(h => h.archived));
+  $('archive-tbody').innerHTML = ah.length ? ah.map((h, i) => {
+    const count = D.students.filter(s => (s.halaqat || []).some(sh => sh.hid === h.id)).length;
+    return `<tr style="background:#fafaf8;"><td style="color:var(--text-muted);font-size:12px;">${i + 1}</td>
+      <td style="font-weight:600;color:var(--text-muted);">📦 ${esc(h.name)}${h.archivedAt ? `<br/><span style="font-size:11px;font-weight:400;">أُرشفت: ${fmtDate(h.archivedAt)}</span>` : ''}</td>
+      <td style="color:var(--text-muted);">${money(h.amount)}</td><td style="color:var(--text-muted);">${count}</td>
+      <td><div class="row-gap"><button class="btn sm confirm" onclick="patchDoc('halaqat','${esc(h.id)}',{archived:false,archivedAt:null});toast('✅ تمت الاستعادة')">↩ استعادة</button>
+      <button class="btn sm danger" onclick="deleteHalaqa('${esc(h.id)}')">🗑 حذف نهائي</button></div></td></tr>`;
+  }).join('') : '<tr><td colspan="5"><div class="empty">لا توجد حلقات مؤرشفة</div></td></tr>';
+  const ad = sortAr(D.dourat.filter(d => d.archived));
+  $('archive-dourat-tbody').innerHTML = ad.length ? ad.map((d, i) => {
+    const st = calcDoura(d);
+    return `<tr style="background:#fafaf8;"><td style="color:var(--text-muted);font-size:12px;">${i + 1}</td>
+      <td style="font-weight:600;color:var(--text-muted);">📦 ${esc(d.name)}${d.date ? `<br/><span style="font-size:11px;font-weight:400;">${esc(d.date)}</span>` : ''}</td>
+      <td style="color:var(--text-muted);">${st.list.length} · ${w('paidPl')} ${st.paidCount}</td>
+      <td><div class="row-gap"><button class="btn sm confirm" onclick="patchDoc('dourat','${esc(d.id)}',{archived:false,archivedAt:null});toast('✅ تمت الاستعادة')">↩ استعادة</button>
+      <button class="btn sm danger" onclick="deleteDoura('${esc(d.id)}')">🗑 حذف نهائي</button></div></td></tr>`;
+  }).join('') : '<tr><td colspan="4"><div class="empty">لا توجد دورات مؤرشفة</div></td></tr>';
+}
+
+// ===================== RENEWAL =====================
+function openRenewal() {
+  $('renewal-current').textContent = settings.semester || '—';
+  const idx = SEMESTERS.indexOf(settings.semester);
+  fillSemesterSelect('renewal-select', SEMESTERS[(idx + 1) % SEMESTERS.length]);
+  const act = D.students.filter(s => !s.paused).length;
+  $('renewal-summary').innerHTML = `${w('studentsAll')} ${w('activePl')} (سيتم تصفيرهم): <strong>${act}</strong><br/>الموقوفون مؤقتاً (لن يتأثروا): <strong>${D.students.length - act}</strong>`;
+  applyWords(); openOverlay('renewal-overlay');
+}
+async function confirmRenewal() {
+  const sel = $('renewal-select').value;
+  if (sel === settings.semester) { toast('اختر فصلاً مختلفاً عن الحالي', 'warn'); return; }
+  const ok = await showConfirm('تأكيد التجديد', `الانتقال إلى ${sel} وتصفير دفعات الحلقات؟\nسيتم تنزيل نسخة احتياطية أولاً.`, 'تجديد', 'primary', '🔄');
+  if (!ok) return;
+  exportBackup(true);
+  const reset = sh => {
+    const n = { ...sh, paid: false, paidAt: null, paymentMethod: null };
+    if (Array.isArray(sh.installments)) n.installments = sh.installments.map(i => ({ ...i, paid: false, paidAt: null, paymentMethod: null }));
+    return n;
+  };
+  const ops = D.students.filter(s => !s.paused).map(s => ({ type: 'update', c: 'students', id: s.id, data: { halaqat: JSON.parse(JSON.stringify((s.halaqat || []).map(reset))) } }));
+  commitOps(ops); saveSettings({ semester: sel });
+  closeOverlay('renewal-overlay'); toast(`✅ تم التجديد للـ ${sel}`);
+}
+
+// ===================== BACKUP / IMPORT =====================
+function exportBackup(silent) {
+  const strip = o => { const { updatedAt, ...r } = o; return r; };
+  const data = { version: 4, app: 'markas-cloud', exportedAt: new Date().toISOString(), settings: strip(settings),
+    halaqat: D.halaqat.map(strip), students: D.students.map(strip), dourat: D.dourat.map(strip), enrollments: D.enrollments.map(strip) };
+  downloadFile(`نسخة_احتياطية_${settings.centerName || 'مركز'}_${fileDate()}.json`, JSON.stringify(data, null, 2), 'application/json;charset=utf-8');
+  if (!silent) toast('✅ تم تنزيل النسخة الاحتياطية');
+}
+const SAFE_ID = /^[A-Za-z0-9_-]{1,100}$/;
+// تحويل أي ملف (النسخة القديمة v3 أو هذا النظام v4) إلى الهيكل الجديد
+function normalizeBackup(data) {
+  const strip = o => { const { updatedAt, createdAt, ...r } = o || {}; return r; };
+  if (data && data.version === 4) {
+    return { settings: (({ pin, updatedAt, createdAt, ...r }) => r)(data.settings || {}),
+      halaqat: (data.halaqat || []).map(strip), students: (data.students || []).map(strip),
+      dourat: (data.dourat || []).map(strip), enrollments: (data.enrollments || []).map(strip) };
+  }
+  if (!data || !Array.isArray(data.students) || !Array.isArray(data.halaqat)) throw new Error('bad-format');
+  const hMap = {};
+  const fixId = (id, map) => { const nid = (id && SAFE_ID.test(String(id))) ? String(id) : uid(); if (map && id) map[id] = nid; return nid; };
+  const halaqat = [
+    ...(data.halaqat || []).map(h => ({ ...h, archived: false })),
+    ...(data.archivedHalaqat || []).map(h => ({ ...h, archived: true }))
+  ].map(h => ({ ...h, id: fixId(h.id, hMap), amount: r3(h.amount) }));
+  const seenH = new Set(); const halaqatU = halaqat.filter(h => !seenH.has(h.id) && seenH.add(h.id));
+  const seenS = new Set();
+  const students = (data.students || []).map(s => {
+    let id = fixId(s.id); if (seenS.has(id)) id = uid(); seenS.add(id);
+    return { ...s, id, paused: !!s.paused, halaqat: (s.halaqat || []).map(sh => ({ ...sh, hid: hMap[sh.hid] || sh.hid })) };
+  });
+  const dourat = [], enrollments = [], seenE = new Set();
+  (data.dourat || []).forEach(d => {
+    const id = fixId(d.id); const sMap = {};
+    const sections = (Array.isArray(d.sections) && d.sections.length ? d.sections : [{ id: 'default', name: 'عام', amount: d.amount || 0 }])
+      .map(s => ({ id: fixId(s.id, sMap), name: s.name || 'عام', amount: r3(s.amount) }));
+    dourat.push({ id, name: d.name || '', date: d.date || '', note: d.note || '', sections, archived: !!d.archived });
+    (d.students || []).forEach(e => {
+      let eid = fixId(e.id); if (seenE.has(eid)) eid = uid(); seenE.add(eid);
+      enrollments.push({ ...e, id: eid, douraId: id, sectionId: sMap[e.sectionId] || e.sectionId || sections[0].id });
+    });
+  });
+  const settingsOut = {};
+  if (data.semester) settingsOut.semester = data.semester;
+  if (data.waTemplate) settingsOut.waTemplate = data.waTemplate;
+  return { settings: settingsOut, halaqat: halaqatU, students, dourat, enrollments };
+}
+let importData = null;
+const IMP_LABELS = { halaqat: 'الحلقات (مع المؤرشفة)', students: 'السجلات', dourat: 'الدورات', enrollments: 'تسجيلات الدورات' };
+function openImport() {
+  importData = null; $('imp-step1').style.display = 'block'; $('imp-step2').style.display = 'none'; $('imp-btn').style.display = 'none';
+  openOverlay('import-overlay');
+}
+function importPick(ev) {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { importData = normalizeBackup(JSON.parse(r.result)); }
+    catch (e) { toast('❌ الملف غير صالح', 'error'); return; }
+    $('imp-file').innerHTML = `📄 <strong>${esc(f.name)}</strong>`;
+    $('imp-tbody').innerHTML = COLS.map(c => `<tr><td>${IMP_LABELS[c]}</td><td>${importData[c].length}</td><td id="imp-v-${c}">—</td></tr>`).join('');
+    const existing = COLS.reduce((a, c) => a + D[c].length, 0);
+    $('imp-warn').innerHTML = existing
+      ? `<div class="warn-box">يوجد ${existing} سجل حالياً. الاستيراد <strong>لا يحذف</strong> شيئاً: السجلات الجديدة تُضاف، والسجلات بنفس المعرّف تُحدَّث. إعادة الاستيراد لا تكرر البيانات.</div>` : '';
+    $('imp-progress').textContent = '';
+    $('imp-step1').style.display = 'none'; $('imp-step2').style.display = 'block';
+    $('imp-btn').style.display = 'inline-flex'; $('imp-btn').disabled = false;
+  };
+  r.readAsText(f, 'UTF-8');
+}
+async function runImport() {
+  if (!importData) return;
+  if (!navigator.onLine) { toast('الاستيراد يحتاج اتصالاً بالإنترنت', 'warn'); return; }
+  const btn = $('imp-btn'); btn.disabled = true;
+  const ops = [];
+  COLS.forEach(c => importData[c].forEach(o => ops.push({ type: 'set', c, id: o.id, data: { ...clean(o), updatedAt: FV.serverTimestamp() } })));
+  try {
+    await commitOps(ops, (done, total) => { $('imp-progress').textContent = `⏳ تم رفع ${done} من ${total}...`; });
+    if (Object.keys(importData.settings).length) await centerRef.set(importData.settings, { merge: true });
+    $('imp-progress').textContent = '🔎 جارٍ التحقق من البيانات على السيرفر...';
+    let allOk = true;
+    for (const c of COLS) {
+      const snap = await col(c).get({ source: 'server' });
+      const ids = new Set(snap.docs.map(d => d.id));
+      const found = importData[c].filter(o => ids.has(o.id)).length, exp = importData[c].length;
+      if (found !== exp) allOk = false;
+      $('imp-v-' + c).innerHTML = `<span class="${found === exp ? 'ok-txt' : 'bad-txt'}">${found} ${found === exp ? '✓' : '✗'}</span>`;
+    }
+    $('imp-progress').innerHTML = allOk ? '<span class="ok-txt">✅ تم الاستيراد والتحقق — كل السجلات مطابقة</span>' : '<span class="bad-txt">⚠️ بعض السجلات غير مطابقة — أعد الاستيراد بنفس الملف (لن يتكرر شيء)</span>';
+    btn.style.display = 'none'; importData = null;
+  } catch (e) {
+    console.error(e); btn.disabled = false;
+    $('imp-progress').innerHTML = `<span class="bad-txt">❌ فشل الاستيراد: ${esc(e.code || e.message)} — يمكن إعادة المحاولة بأمان</span>`;
+  }
+}
+async function deleteAllData() {
+  const ok = await showConfirm('⚠️ مسح كل البيانات', 'سيتم حذف كل السجلات والحلقات والدورات نهائياً.\nسيتم تنزيل نسخة احتياطية أولاً.', 'متابعة', 'danger', '⚠️');
+  if (!ok) return;
+  if (prompt('للتأكيد اكتب كلمة: حذف') !== 'حذف') { toast('تم الإلغاء', 'info'); return; }
+  exportBackup(true);
+  commitOps(COLS.flatMap(c => D[c].map(o => ({ type: 'delete', c, id: o.id }))));
+  toast('✅ تم مسح البيانات');
+}
+
+// ===================== REPORTS =====================
+function calcHalaqa(h) {
+  const studs = D.students.filter(s => !s.paused && (s.halaqat || []).some(sh => sh.hid === h.id));
+  const T = { expected: 0, paid: 0, cash: 0, benefit: 0, other: 0, remaining: 0 }; let settled = 0; const late = [];
+  const rows = studs.map(s => { const sh = s.halaqat.find(x => x.hid === h.id); const b = breakdown(sh, +h.amount || 0); sumInto(T, b); if (b.settled) settled++; else late.push(s); return { s, sh, b }; });
+  return { rows: rows.sort((a, b) => String(a.s.name).localeCompare(String(b.s.name), 'ar')), late, ...T, paidCount: settled };
+}
+function statusText(e, b) {
+  if (e.feeType === 'exempt') return w('exempt');
+  if (e.feeType === 'sponsored') return 'بكفالة';
+  if (e.feeType === 'installment' && Array.isArray(e.installments)) return b.settled ? '✓ ' + w('paid') : `تقسيط ${e.installments.filter(i => i.paid).length}/${e.installments.length}`;
+  return b.settled ? '✓ ' + w('paid') : '✗ ' + w('notPaid');
+}
+function statusBadge(e, b) {
+  const t = statusText(e, b);
+  const cls = e.feeType === 'exempt' ? 'muted' : e.feeType === 'sponsored' ? 'blue' : b.settled ? 'paid' : b.paid > 0 ? 'orange' : 'unpaid';
+  return `<span class="badge ${cls}">${t}</span>`;
+}
+function lastPaidAt(e) {
+  if (Array.isArray(e.installments)) { const d = e.installments.filter(i => i.paid && i.paidAt).map(i => i.paidAt).sort().pop(); return d || null; }
+  return e.paid ? e.paidAt : null;
+}
+function renderReports() {
+  const f = $('rpt-filter').value, hs = activeHalaqat(), ds = activeDourat();
+  const G = { expected: 0, paid: 0, cash: 0, benefit: 0, other: 0, remaining: 0 }; let count = 0, late = 0;
+  const hStats = (f !== 'dourat') ? hs.map(h => ({ h, st: calcHalaqa(h) })) : [];
+  const dStats = (f !== 'halaqat') ? ds.map(d => ({ d, st: calcDoura(d) })) : [];
+  hStats.forEach(({ st }) => { sumInto(G, st); count += st.rows.length; late += st.late.length; });
+  dStats.forEach(({ st }) => { sumInto(G, st); count += st.list.length; late += st.unpaidCount; });
+  const pct = G.expected > 0 ? Math.round(G.paid / G.expected * 100) : 0;
+  let html = `<div id="print-area">
+    <div id="rpt-print-header" style="display:none;text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #0F6E56;">
+      ${settings.logo ? `<img src="${esc(settings.logo)}" style="width:60px;height:60px;border-radius:10px;object-fit:cover;margin-bottom:6px;"/>` : ''}
+      <div style="font-size:22px;font-weight:700;color:#0F6E56;">${esc(settings.centerName)}</div>
+      <div style="font-size:13px;color:#666;margin-top:4px;">تقرير ${esc(settings.semester || '')} · ${todayStr()}</div>
+    </div>
+    <div class="rpt-section">
+      <div class="rpt-header"><h3>📊 الملخص العام — ${esc(settings.semester || '')}</h3><span>${todayStr()}</span></div>
+      <div class="rpt-summary">
+        <div class="rpt-stat"><div class="rpt-stat-val">${count}</div><div class="rpt-stat-label">إجمالي ${w('registeredPl')}</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val">${money(G.paid)}</div><div class="rpt-stat-label">المحصّل</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val red">${money(G.remaining)}</div><div class="rpt-stat-label">المتبقي</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val amber">${late}</div><div class="rpt-stat-label">${w('latePl')}</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val">${pct}%</div><div class="rpt-stat-label">نسبة التحصيل</div></div>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--gray-border);display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:12px;color:var(--text-muted);font-weight:600;">طريقة الدفع:</span>
+        ${splitBadges(G.cash, G.benefit, G.other) || '<span class="hint">لا توجد دفعات بعد</span>'}
+      </div>
+      <div style="padding:0 16px 14px;"><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%;background:${pctColor(pct)}"></div></div></div>
+    </div>`;
+  if (hStats.length) {
+    html += `<div class="rpt-section"><div class="rpt-header"><h3>📚 تقرير الحلقات</h3><span>${hStats.length} حلقة</span></div>`;
+    hStats.forEach(({ h, st }) => {
+      const p = st.expected > 0 ? Math.round(st.paid / st.expected * 100) : 100;
+      html += `<div class="rpt-block">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div><div style="font-weight:600;font-size:14px;">${esc(h.name)}</div><div class="hint">${h.teacher ? w('teacherH') + ': ' + esc(h.teacher) + ' · ' : ''}${st.rows.length} · ${money(h.amount)}/فصل</div></div>
+          <div class="row-gap"><span class="badge paid">${money(st.paid)} محصّل</span><span class="badge unpaid">${money(st.remaining)} متبقي</span>${splitBadges(st.cash, st.benefit, 0)}
+            <button class="btn sm no-print" onclick="printHalaqaSheet('${esc(h.id)}')">🖨 كشف</button></div>
+        </div>
+        <div class="progress-bar-wrap" style="margin-bottom:10px;"><div class="progress-bar-fill" style="width:${p}%;background:${pctColor(p)}"></div></div>
+        <div style="overflow-x:auto;"><table class="rpt-table"><thead><tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>الرسوم</th><th>المدفوع</th><th>الحالة</th><th>آخر دفع</th></tr></thead><tbody>
+        ${st.rows.map(({ s, sh, b }, i) => `<tr><td style="color:var(--text-muted)">${i + 1}</td><td style="font-weight:500">${esc(s.name)}</td><td dir="ltr" style="color:var(--text-muted)">${esc(s.phone || '—')}</td><td>${money(b.expected)}</td><td>${money(b.paid)}</td><td>${statusBadge(sh, b)}</td><td style="font-size:11px;">${fmtDate(lastPaidAt(sh)) || '—'}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${st.late.length ? `<div class="late-box"><strong style="color:var(--red);">${w('notPaidPl')} (${st.late.length}):</strong> ${st.late.map(s => esc(s.name)).join('، ')}</div>` : `<div class="hint" style="color:var(--green-dark);margin-top:8px;">✅ الكل مكتمل الدفع</div>`}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  if (dStats.length) {
+    html += `<div class="rpt-section"><div class="rpt-header amber"><h3>🌟 تقرير الدورات والأنشطة</h3><span>${dStats.length} دورة</span></div>`;
+    dStats.forEach(({ d, st }) => {
+      const p = st.expected > 0 ? Math.round(st.paid / st.expected * 100) : 100;
+      const lateL = st.list.filter(e => !breakdown(e, enrollBase(e)).settled);
+      html += `<div class="rpt-block">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div><div style="font-weight:600;font-size:14px;">${esc(d.name)}</div><div class="hint">${d.date ? esc(d.date) + ' · ' : ''}${st.list.length} ${w('registered')}</div></div>
+          <div class="row-gap"><span class="badge paid">${money(st.paid)} محصّل</span><span class="badge unpaid">${money(st.remaining)} متبقي</span>${splitBadges(st.cash, st.benefit, 0)}
+            <button class="btn sm no-print" onclick="printDouraSheet('${esc(d.id)}')">🖨 كشف</button></div>
+        </div>
+        <div class="progress-bar-wrap" style="margin-bottom:10px;"><div class="progress-bar-fill" style="width:${p}%;background:${pctColor(p)}"></div></div>
+        <div style="overflow-x:auto;"><table class="rpt-table"><thead><tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>القسم</th><th>الرسوم</th><th>المدفوع</th><th>الحالة</th></tr></thead><tbody>
+        ${sortAr(st.list).map((e, i) => { const b = breakdown(e, enrollBase(e)); return `<tr><td style="color:var(--text-muted)">${i + 1}</td><td style="font-weight:500">${esc(e.name)}</td><td dir="ltr" style="color:var(--text-muted)">${esc(e.phone || '—')}</td><td>${esc(sectionOf(e).name)}</td><td>${money(b.expected)}</td><td>${money(b.paid)}</td><td>${statusBadge(e, b)}</td></tr>`; }).join('')}
+        </tbody></table></div>
+        ${lateL.length ? `<div class="late-box"><strong style="color:var(--red);">${w('notPaidPl')} (${lateL.length}):</strong> ${lateL.map(e => esc(e.name)).join('، ')}</div>` : `<div class="hint" style="color:var(--green-dark);margin-top:8px;">✅ الكل مكتمل الدفع</div>`}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  if (!hStats.length && !dStats.length) html += `<div class="empty">لا توجد بيانات لعرض التقارير</div>`;
+  $('report-content').innerHTML = html + '</div>';
+}
+function printReport() {
+  const hdr = $('rpt-print-header'); if (hdr) hdr.style.display = 'block';
+  window.print();
+  setTimeout(() => { if (hdr) hdr.style.display = 'none'; }, 800);
+}
+function sheetHtml({ title, meta, color, summary, head, rows, sign }) {
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width"/><title>${esc(title)}</title>
+  <style>*{box-sizing:border-box;}body{font-family:Tahoma,Arial,sans-serif;padding:16px;color:#111;font-size:12px;margin:0;}
+  .hd{display:flex;align-items:center;gap:12px;margin-bottom:10px;} .hd img{width:52px;height:52px;border-radius:8px;object-fit:cover;}
+  h2{color:${color};margin:0 0 2px;font-size:15px;}.meta{color:#666;font-size:11px;}
+  table{width:100%;border-collapse:collapse;} th{background:${color};color:#fff;padding:7px 8px;text-align:right;font-size:11px;}
+  td{padding:6px 8px;border-bottom:1px solid #eee;vertical-align:middle;}
+  .summary{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0;padding:10px;background:#f5f5f5;border-radius:6px;}
+  .s-item{text-align:center;min-width:60px;}.s-val{font-size:15px;font-weight:700;color:${color};}.s-lbl{font-size:10px;color:#666;}
+  .sign{margin-top:28px;display:flex;justify-content:space-between;font-size:11px;color:#666;}
+  @media print{body{padding:8px;}tr{page-break-inside:avoid;}th,.summary{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
+  <div class="hd">${settings.logo ? `<img src="${esc(settings.logo)}"/>` : ''}<div><h2>${esc(title)}</h2><div class="meta">${meta}</div></div></div>
+  <div class="summary">${summary.map(([v, l, c]) => `<div class="s-item"><div class="s-val"${c ? ` style="color:${c}"` : ''}>${v}</div><div class="s-lbl">${l}</div></div>`).join('')}</div>
+  <table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+  ${sign ? `<div class="sign">${sign.map(s => `<span>${s}: ________________</span>`).join('')}</div>` : ''}
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+}
+function openPrint(html) { const win = window.open('', '_blank'); if (!win) { toast('اسمح بالنوافذ المنبثقة للطباعة', 'warn'); return; } win.document.write(html); win.document.close(); }
+function printHalaqaSheet(hid) {
+  const h = hById(hid); if (!h) return; const st = calcHalaqa(h);
+  const rows = st.rows.map(({ s, sh, b }, i) => `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td dir="ltr">${esc(s.phone || '—')}</td><td>${money(b.expected)}</td><td>${money(b.paid)}</td><td style="color:${b.settled ? '#0F6E56' : '#E24B4A'};font-weight:600;">${statusText(sh, b)}</td><td>${fmtDate(lastPaidAt(sh)) || '—'}</td><td></td></tr>`).join('');
+  openPrint(sheetHtml({ title: `${settings.centerName} — كشف حلقة ${h.name}`, color: '#0F6E56',
+    meta: `${h.teacher ? w('teacherH') + ': ' + esc(h.teacher) + ' · ' : ''}${h.supervisor ? w('supervisorH') + ': ' + esc(h.supervisor) + ' · ' : ''}${esc(settings.semester || '')} · ${todayStr()}`,
+    summary: [[st.rows.length, 'الإجمالي'], [st.paidCount, w('paidPl')], [st.rows.length - st.paidCount, w('notPaidPl'), '#E24B4A'], [money(st.paid), 'محصّل'], [money(st.remaining), 'متبقي', '#E24B4A'], ...(st.cash ? [['💵 ' + r3(st.cash), 'كاش']] : []), ...(st.benefit ? [['🏦 ' + r3(st.benefit), 'بنفت', '#185FA5']] : [])],
+    head: ['#', 'الاسم', 'الهاتف', 'الرسوم', 'المدفوع', 'الحالة', 'آخر دفع', 'توقيع'], rows,
+    sign: ['توقيع ' + w('teacherH'), 'توقيع ' + w('supervisorH')] }));
+}
+function printDouraSheet(did) {
+  const d = dById(did); if (!d) return; const st = calcDoura(d);
+  const rows = sortAr(st.list).map((e, i) => { const b = breakdown(e, enrollBase(e)); return `<tr><td>${i + 1}</td><td>${esc(e.name)}</td><td dir="ltr">${esc(e.phone || '—')}</td><td>${esc(sectionOf(e).name)}</td><td>${money(b.expected)}</td><td>${money(b.paid)}</td><td style="color:${b.settled ? '#0F6E56' : '#E24B4A'};font-weight:600;">${statusText(e, b)}</td><td></td></tr>`; }).join('');
+  openPrint(sheetHtml({ title: `${settings.centerName} — كشف ${d.name}`, color: '#BA7517',
+    meta: `${d.date ? esc(d.date) + ' · ' : ''}تاريخ الطباعة: ${todayStr()}`,
+    summary: [[st.list.length, 'الإجمالي'], [st.paidCount, w('paidPl'), '#0F6E56'], [st.unpaidCount, w('notPaidPl'), '#E24B4A'], [money(st.paid), 'محصّل'], [money(st.remaining), 'متبقي', '#E24B4A'], ...sectionsOf(d).map(sec => [st.list.filter(e => sectionOf(e).id === sec.id).length, esc(sec.name)])],
+    head: ['#', 'الاسم', 'الهاتف', 'القسم', 'الرسوم', 'المدفوع', 'الحالة', 'توقيع'], rows }));
+}
+function exportReportExcel() {
+  if (typeof XLSX === 'undefined') { toast('مكتبة Excel غير محمّلة — تحقق من الاتصال', 'error'); return; }
+  const wb = XLSX.utils.book_new(), used = new Set();
+  const sheetName = n => { let b = String(n || 'ورقة').replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 28) || 'ورقة', s = b, i = 2; while (used.has(s)) s = b.slice(0, 25) + ' ' + i++; used.add(s); return s; };
+  const add = (name, rows) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!views'] = [{ RTL: true }]; XLSX.utils.book_append_sheet(wb, ws, sheetName(name)); };
+  const hs = activeHalaqat();
+  if (hs.length) add('الحلقات', [['الحلقة', w('teacherH'), 'العدد', 'المتوقع', 'المحصّل', 'كاش', 'بنفت', 'المتبقي', 'نسبة التحصيل'],
+    ...hs.map(h => { const st = calcHalaqa(h); return [h.name, h.teacher || '', st.rows.length, st.expected, st.paid, st.cash, st.benefit, st.remaining, (st.expected ? Math.round(st.paid / st.expected * 100) : 100) + '%']; })]);
+  if (D.students.length) add(w('studentsAll'), [['الاسم', 'الهاتف', 'رقم المستخدم', 'الرقم الشخصي', 'الحلقات', 'المتوقع', 'المدفوع', 'المتبقي', 'الحالة'],
+    ...sortAr(D.students).map(s => { const t = studentSum(s); return [s.name, s.phone || '', s.userid || '', s.personalid || '', studentEntries(s).map(sh => hById(sh.hid).name).join(' / '), t.expected, t.paid, t.remaining, s.paused ? w('paused') : t.unsettled ? w('late') : w('complete')]; })]);
+  activeDourat().forEach(d => { const st = calcDoura(d);
+    add(d.name, [['الاسم', 'الهاتف', 'المركز', 'القسم', 'الرسوم', 'المدفوع', 'الحالة'], ...sortAr(st.list).map(e => { const b = breakdown(e, enrollBase(e)); return [e.name, e.phone || '', e.center || '', sectionOf(e).name, b.expected, b.paid, statusText(e, b)]; })]); });
+  if (!wb.SheetNames.length) { toast('لا توجد بيانات للتصدير', 'warn'); return; }
+  XLSX.writeFile(wb, `تقرير_${settings.centerName || 'مركز'}_${fileDate()}.xlsx`);
+}
+
+// ===================== EXCEL IMPORT (دورات) =====================
+let excelRows = [], excelHeaders = [];
+function openExcelImport() {
+  const act = activeDourat(); if (!act.length) { toast('أضف دورة أولاً', 'warn'); return; }
+  $('excel-doura').innerHTML = act.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('');
+  $('excel-step2').style.display = 'none'; $('excel-btn').style.display = 'none'; $('excel-file-name').textContent = '';
+  excelRows = []; excelHeaders = []; fillExcelSections(); openOverlay('excel-overlay');
+}
+function fillExcelSections() { const d = dById($('excel-doura').value); $('excel-section').innerHTML = sectionsOf(d).map(s => `<option value="${esc(s.id)}">${esc(s.name)} — ${money(s.amount)}</option>`).join(''); }
+function handleExcelFile(ev) {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  $('excel-file-name').textContent = f.name;
+  const r = new FileReader();
+  if (f.name.toLowerCase().endsWith('.csv')) {
+    r.onload = () => {
+      const lines = String(r.result).split(/\r?\n/).filter(l => l.trim()); if (!lines.length) { toast('الملف فارغ', 'warn'); return; }
+      const delim = lines[0].includes('\t') ? '\t' : ',', parse = l => l.split(delim).map(c => c.replace(/^"|"$/g, '').trim());
+      excelHeaders = parse(lines[0]);
+      excelRows = lines.slice(1).map(l => { const c = parse(l), o = {}; excelHeaders.forEach((h, i) => o[h] = c[i] || ''); return o; });
+      setupMapping();
+    };
+    r.readAsText(f, 'UTF-8');
+  } else {
+    r.onload = () => {
+      try {
+        if (typeof XLSX === 'undefined') { toast('مكتبة Excel غير محمّلة', 'error'); return; }
+        const wb = XLSX.read(new Uint8Array(r.result), { type: 'array' });
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false });
+        if (!json.length) { toast('لا توجد بيانات في الملف', 'warn'); return; }
+        excelHeaders = Object.keys(json[0]); excelRows = json; setupMapping();
+      } catch (e) { toast('تعذر قراءة الملف', 'error'); }
+    };
+    r.readAsArrayBuffer(f);
+  }
+}
+function setupMapping() {
+  const opts = '<option value="">-- لا يوجد --</option>' + excelHeaders.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+  const auto = { 'map-name': ['اسم', 'name'], 'map-phone': ['هاتف', 'phone', 'جوال', 'موبايل'], 'map-personalid': ['شخصي', 'هوية', 'cpr'], 'map-center': ['مركز', 'center'] };
+  Object.entries(auto).forEach(([id, kws]) => { $(id).innerHTML = opts; const m = excelHeaders.find(h => kws.some(k => h.toLowerCase().includes(k))); if (m) $(id).value = m; });
+  $('excel-preview').innerHTML = '<strong>معاينة (أول 3 صفوف):</strong><br/>' + excelRows.slice(0, 3).map(r => Object.entries(r).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' | ')).join('<br/>');
+  $('excel-step2').style.display = 'block'; $('excel-btn').style.display = 'inline-flex';
+}
+function confirmExcelImport() {
+  const d = dById($('excel-doura').value); if (!d) return;
+  const cn = $('map-name').value, cp = $('map-phone').value, ci = $('map-personalid').value, cc = $('map-center').value, sec = $('excel-section').value;
+  if (!cn) { toast('حدد عمود الاسم', 'warn'); return; }
+  const ops = []; let skipped = 0;
+  excelRows.forEach(r => {
+    const name = String(r[cn] || '').trim(); if (!name) { skipped++; return; }
+    const id = uid();
+    ops.push({ type: 'set', c: 'enrollments', id, data: { douraId: d.id, name, phone: cp ? String(r[cp] || '').trim() : '', personalid: ci ? String(r[ci] || '').trim() : '', center: cc ? String(r[cc] || '').trim() : '', note: '', sectionId: sec, paid: false, paidAt: null, updatedAt: FV.serverTimestamp() } });
+  });
+  if (!ops.length) { toast('لم يتم العثور على أسماء', 'warn'); return; }
+  commitOps(ops); openCards.add('dc-' + d.id); closeOverlay('excel-overlay');
+  toast(`✅ تم استيراد ${ops.length}${skipped ? ` (تخطي ${skipped} صف فارغ)` : ''}`, 'success', 4000);
+}
+
+// ===================== HELP & TOUR =====================
+function helpContent(page) {
+  const C = {
+    students: ['الصفحة الرئيسية', [['🔍', 'البحث', 'بالاسم أو الهاتف أو رقم إقراء أو الرقم الشخصي'], ['+', w('addStudent'), 'مع تحديد الحلقة أو الحلقات'], ['✓', 'تأكيد الدفع', 'افتح البطاقة ثم "✓ تأكيد دفع" واختر كاش أو بنفت'], ['⚙', 'نوع الرسوم', 'عادي / إعفاء / مخفضة / كفالة / تقسيط'], ['⏸', 'إيقاف مؤقت', 'يُستبعد من الإحصائيات والتقارير دون حذف'], ['🌟', 'تسجيل في دورة', 'تسجيل مباشر من البطاقة']]],
+    halaqat: ['الحلقات', [['+', 'إضافة حلقة', 'الاسم والمبلغ الفصلي و' + w('teacherH')], ['📦', 'أرشفة', 'بدل الحذف — تبقى البيانات'], ['🗑', 'حذف', 'يزيل الحلقة من كل السجلات']]],
+    dourat: ['الدورات والأنشطة', [['+', 'إضافة دورة', 'بأقسام متعددة ومبالغ مختلفة'], ['📊', 'استيراد Excel', 'إضافة جماعية للمسجلين'], ['📦', 'أرشفة', 'بعد انتهاء الدورة']]],
+    reports: ['التقارير', [['🖨', 'طباعة / PDF', 'التقرير الكامل'], ['📊', 'Excel', 'ورقة لكل حلقة ودورة'], ['🖨', 'كشف', 'كشف منفصل مع خانة توقيع']]],
+    archive: ['الأرشيف', [['↩', 'استعادة', 'إرجاع الحلقة أو الدورة'], ['🗑', 'حذف نهائي', 'لا يمكن التراجع']]]
+  };
+  return C[page] || C.students;
+}
+function openHelp() {
+  const [title, items] = helpContent(curPage);
+  $('help-title').textContent = '❓ ' + title;
+  $('help-content').innerHTML = items.map(([i, t, d]) => `<div class="help-item"><div class="help-icon">${i}</div><div><div class="help-text-title">${esc(t)}</div><div class="help-text-desc">${esc(d)}</div></div></div>`).join('')
+    + `<div class="help-item"><div class="help-icon">☁️</div><div><div class="help-text-title">الحفظ السحابي</div><div class="help-text-desc">كل تعديل يُحفظ فوراً ويظهر على كل الأجهزة. بدون إنترنت يُحفظ على الجهاز ويُرفع تلقائياً عند الاتصال.</div></div></div>`;
+  openOverlay('help-overlay');
+}
+function tourSteps() {
+  return [
+    ['مرحباً بك 👋', 'جولة سريعة على أهم أجزاء النظام — أقل من دقيقة.'],
+    ['📚 ابدأ بالحلقات', 'أضف الحلقات أولاً من تبويب "الحلقات": الاسم و' + w('teacherH') + ' والمبلغ الفصلي.'],
+    [w('emoji') + ' ثم ' + w('studentsAll'), 'من الصفحة الرئيسية اضغط "+ ' + w('addStudent') + '" وحدد الحلقة.'],
+    ['✓ متابعة الدفعات', 'افتح البطاقة ثم "✓ تأكيد دفع" — يُسجَّل التاريخ وطريقة الدفع تلقائياً.'],
+    ['📲 تذكير بواتساب', 'زر "تذكير الكل" يعرض المتأخرين عن الدفع مع زر إرسال لكل واحد.'],
+    ['☁️ حفظ سحابي', 'البيانات تتزامن لحظياً بين كل الأجهزة. استخدم ❓ أسفل الشاشة في أي وقت.']
+  ];
+}
+let tourIdx = 0;
+function maybeStartTour() { const k = 'markas_tour_' + (user && user.uid); try { if (!localStorage.getItem(k)) setTimeout(startTour, 800); } catch (e) {} }
+function startTour() { tourIdx = 0; $('tour-overlay').classList.add('open'); renderTour(); }
+function renderTour() {
+  const steps = tourSteps(), [t, d] = steps[tourIdx];
+  $('tour-step-num').textContent = `${tourIdx + 1} من ${steps.length}`; $('tour-title').textContent = t; $('tour-desc').textContent = d;
+  $('tour-dots').innerHTML = steps.map((_, i) => `<div class="tour-dot${i === tourIdx ? ' active' : ''}"></div>`).join('');
+  $('tour-next').textContent = tourIdx === steps.length - 1 ? '✅ ابدأ' : 'التالي';
+}
+function tourNext() { if (tourIdx < tourSteps().length - 1) { tourIdx++; renderTour(); } else endTour(); }
+function endTour() { $('tour-overlay').classList.remove('open'); try { localStorage.setItem('markas_tour_' + (user && user.uid), '1'); } catch (e) {} }
+
+// ===================== SERVICE WORKER =====================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    reg.update();
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      nw.addEventListener('statechange', () => { if (nw.state === 'installed' && navigator.serviceWorker.controller) nw.postMessage({ action: 'skipWaiting' }); });
+    });
+  }).catch(e => console.warn('sw', e));
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!refreshing) { refreshing = true; location.reload(); } });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // الترخيص فعّال + غير منتهي (expiresAt اختياري)
+    function licensed(uid) {
+      let lic = get(/databases/$(database)/documents/licenses/$(uid)).data;
+      return lic.active == true
+        && (!('expiresAt' in lic) || lic.expiresAt > request.time);
+    }
+
+    // التراخيص: المركز يقرأ ترخيصه فقط — الكتابة من Firebase Console فقط
+    match /licenses/{uid} {
+      allow read:  if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // بيانات المركز وكل الجداول الفرعية
+    match /centers/{centerId}/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == centerId
+        && licensed(centerId);
+    }
+  }
+}
