@@ -153,6 +153,10 @@ tr:last-child td{border-bottom:none;}
 .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
 .section-title{font-size:15px;font-weight:600;}
 .export-note{font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;}
+.brand-mark{font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:7px;padding:14px 10px 10px;}
+.brand-mark img{height:22px;width:auto;display:block;}
+.brand-mark a{color:#1E7FD0;text-decoration:none;font-weight:600;}
+.brand-mark a:hover{text-decoration:underline;}
 
 .dropdown{position:relative;}
 .dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--white);border:1px solid var(--gray-border);border-radius:var(--radius-lg);box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:220px;z-index:100;overflow:hidden;display:none;}
@@ -213,6 +217,11 @@ tr:last-child td{border-bottom:none;}
 .pin-btn.zero{grid-column:2;}
 .pin-btn.del{font-size:16px;color:var(--text-muted);}
 
+.renew-banner{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 20px;font-size:13px;font-weight:500;}
+.renew-banner.show{display:flex;}
+.renew-banner.warn{background:var(--amber-light);color:#7a4c0c;border-bottom:1px solid #f0d9a8;}
+.renew-banner.danger{background:var(--red-light);color:#8f2020;border-bottom:1px solid #f0b0b0;}
+.contact-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;}
 .toast-container{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
 .toast{padding:10px 20px;border-radius:99px;font-size:13px;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.2);opacity:0;transform:translateY(20px);transition:all .3s ease;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateY(0);}
@@ -291,6 +300,7 @@ body.demo .demo-badge{display:inline-block;}
     </div>
     <button class="btn primary block" onclick="doLogin()" id="login-btn">دخول</button>
     <div style="margin-top:14px;"><button class="btn sm" style="color:var(--text-muted);font-size:11px;" onclick="forgotPassword()">نسيت كلمة المرور؟</button></div>
+    <div class="brand-mark"><span>تطوير</span><img class="suhub-img" alt="سُحُب"/><span>·</span><a href="https://instagram.com/suhub.apps" target="_blank" rel="noopener" dir="ltr">@Suhub.apps</a></div>
   </div>
 </div>
 
@@ -301,6 +311,10 @@ body.demo .demo-badge{display:inline-block;}
     <div class="screen-title" id="susp-title">الاشتراك غير مفعّل</div>
     <div class="screen-sub" id="susp-sub">هذا الحساب غير مفعّل حالياً.<br/>يرجى التواصل مع إدارة النظام لتفعيل الاشتراك.</div>
     <div class="info-box" id="susp-email" dir="ltr" style="text-align:center;"></div>
+    <div class="contact-row">
+      <a class="btn wa" id="susp-wa" href="#" target="_blank" rel="noopener">📲 تواصل للتجديد</a>
+      <a class="btn" href="https://instagram.com/suhub.apps" target="_blank" rel="noopener" dir="ltr">@Suhub.apps</a>
+    </div>
     <button class="btn block" onclick="auth.signOut()">تسجيل الخروج</button>
   </div>
 </div>
@@ -394,6 +408,10 @@ body.demo .demo-badge{display:inline-block;}
     </div>
   </div>
 
+  <div class="renew-banner" id="renew-banner">
+    <span id="renew-text"></span>
+    <a class="btn wa sm" id="renew-wa" href="#" target="_blank" rel="noopener">📲 تجديد الاشتراك</a>
+  </div>
   <div class="tabs">
     <button class="tab active" data-page="students" onclick="showPage('students')"><span data-w="emoji"></span> <span data-w="studentsTab"></span></button>
     <button class="tab" data-page="halaqat" onclick="showPage('halaqat')">📚 الحلقات</button>
@@ -487,6 +505,7 @@ body.demo .demo-badge{display:inline-block;}
     </div>
   </div>
 
+  <div class="brand-mark"><span>تطوير</span><img class="suhub-img" alt="سُحُب"/><span>·</span><a href="https://instagram.com/suhub.apps" target="_blank" rel="noopener" dir="ltr">@Suhub.apps</a></div>
   <button class="help-btn" onclick="openHelp()" title="مساعدة">❓</button>
 </div>
 
@@ -827,7 +846,10 @@ body.demo .demo-badge{display:inline-block;}
    متابعة ميزانية المركز — النسخة السحابية (markas-cloud)
    رابط واحد · كل مركز بحسابه · ترخيص من جدول licenses
    ===================================================================== */
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.4.0';
+// شعار سُحُب (مدمج)
+const SUHUB_LOGO = 'data:image/png;base64,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';
+document.querySelectorAll('.suhub-img').forEach(i => i.src = SUHUB_LOGO);
 
 // ===================== FIREBASE =====================
 const firebaseConfig = {
@@ -977,12 +999,38 @@ function licenseOk(l) {
   if (l.expiresAt && typeof l.expiresAt.toDate === 'function' && l.expiresAt.toDate() < new Date()) return false;
   return true;
 }
+// ===================== الاشتراك والتجديد =====================
+const SUPPORT_WA = '97336777179';
+let license = null;
+function expDate(l) { return l && l.expiresAt && typeof l.expiresAt.toDate === 'function' ? l.expiresAt.toDate() : null; }
+function renewLink(expired) {
+  const name = (settings && settings.centerName) || (license && license.centerName) || '';
+  const msg = `السلام عليكم، ${expired ? 'انتهى' : 'قارب على الانتهاء'} اشتراك ${name ? name + ' ' : ''}في نظام متابعة ميزانية المركز، ونرغب بالتجديد.\nالحساب: ${user ? user.email : ''}`;
+  return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(msg)}`;
+}
 function showSuspended(lic) {
-  const expired = lic && lic.active === true && lic.expiresAt;
+  const exp = expDate(lic);
+  const expired = !!(lic && lic.active === true && exp && exp < new Date());
   $('susp-title').textContent = expired ? 'انتهى الاشتراك' : 'الاشتراك غير مفعّل';
+  $('susp-sub').innerHTML = expired
+    ? `انتهى اشتراككم بتاريخ ${plainDate(exp.toISOString())}.<br/>بيانات المركز محفوظة بالكامل، وتعود فور التجديد.`
+    : 'هذا الحساب غير مفعّل حالياً.<br/>يرجى التواصل لتفعيل الاشتراك.';
   $('susp-email').textContent = user ? user.email : '';
+  $('susp-wa').href = renewLink(expired);
   show('suspended-screen');
 }
+function updateRenewBanner() {
+  const b = $('renew-banner'); if (!b) return;
+  const exp = expDate(license);
+  if (!exp || isDemo) { b.className = 'renew-banner'; return; }
+  const days = Math.ceil((exp - new Date()) / 864e5);
+  if (days > 14) { b.className = 'renew-banner'; return; }
+  if (days <= 0) { stopData(); showSuspended(license); return; }
+  b.className = 'renew-banner show ' + (days <= 3 ? 'danger' : 'warn');
+  $('renew-text').textContent = `⏳ اشتراككم ينتهي بتاريخ ${plainDate(exp.toISOString())} (${days === 1 ? 'غداً' : days === 2 ? 'بعد يومين' : days <= 10 ? 'بعد ' + days + ' أيام' : 'بعد ' + days + ' يوماً'}) — جدّدوا الاشتراك لضمان استمرار الخدمة`;
+  $('renew-wa').href = renewLink(false);
+}
+setInterval(() => { if (license && user) { if (!licenseOk(license)) { stopData(); showSuspended(license); } else updateRenewBanner(); } }, 60 * 60 * 1000);
 
 auth.onAuthStateChanged(u => {
   stopAll();
@@ -995,11 +1043,13 @@ auth.onAuthStateChanged(u => {
   unsubLic = db.collection('licenses').doc(u.uid).onSnapshot(snap => {
     if (!snap.exists && snap.metadata.fromCache) { boot('بانتظار الاتصال بالإنترنت...'); return; }
     const lic = snap.exists ? snap.data() : null;
+    license = lic;
     if (!licenseOk(lic)) { stopData(); showSuspended(lic); return; }
     isDemo = lic.demo === true;
     document.body.classList.toggle('demo', isDemo);
     if (!centerRef) startData();
-  }, err => { console.error('license', err); stopData(); showSuspended(null); });
+    updateRenewBanner();
+  }, err => { console.error('license', err); stopData(); showSuspended(license); });
 });
 
 // ===================== DATA (REAL-TIME) =====================
@@ -1025,10 +1075,10 @@ function stopData() {
   COLS.forEach(c => D[c] = []); openCards.clear();
   $('lock-screen').style.display = 'none';
 }
-function stopAll() { stopData(); if (unsubLic) { unsubLic(); unsubLic = null; } }
+function stopAll() { stopData(); license = null; if (unsubLic) { unsubLic(); unsubLic = null; } }
 function onListenErr(e) {
   console.error(e);
-  if (e.code === 'permission-denied') { stopData(); showSuspended(null); }
+  if (e.code === 'permission-denied') { stopData(); showSuspended(license); }
   else toast('⚠️ تعذر تحميل البيانات: ' + e.code, 'error', 4000);
 }
 function onData() {
@@ -1170,6 +1220,7 @@ function applyCenter() {
   $('semester-label').textContent = settings.semester || '';
   $('topbar-logo').innerHTML = settings.logo ? `<img src="${esc(settings.logo)}" alt=""/>` : '📖';
   applyWords();
+  updateRenewBanner();
 }
 
 // ===================== PIN LOCK =====================
@@ -1205,7 +1256,7 @@ function openSettings() {
   $('cs-pin-toggle').checked = !!settings.pin;
   $('cs-pin-wrap').style.display = settings.pin ? 'block' : 'none';
   ['cs-pin', 'cs-cur-pass', 'cs-new-pass', 'cs-conf-pass'].forEach(id => $(id).value = '');
-  $('cs-account').innerHTML = `الحساب: <span dir="ltr">${esc(user.email)}</span> · الإصدار ${APP_VERSION}`;
+  $('cs-account').innerHTML = `الحساب: <span dir="ltr">${esc(user.email)}</span> · الإصدار ${APP_VERSION}<div class="brand-mark" style="justify-content:flex-start;padding:8px 0 0;"><span>تطوير</span><img src="${SUHUB_LOGO}" alt="سُحُب"/><span>·</span><span dir="ltr">@Suhub.apps</span></div>`;
   openOverlay('settings-overlay');
 }
 function renderLogoPreview() { $('cs-logo-preview').innerHTML = pendingLogo ? `<img src="${esc(pendingLogo)}" class="logo-preview"/>` : ''; }
@@ -1972,12 +2023,13 @@ function renderReports() {
     html += `</div>`;
   }
   if (!hStats.length && !dStats.length) html += `<div class="empty">لا توجد بيانات لعرض التقارير</div>`;
-  $('report-content').innerHTML = html + '</div>';
+  $('report-content').innerHTML = html + '<div class="brand-mark" style="display:none;" id="rpt-print-footer"><span>تطوير</span><img src="${SUHUB_LOGO}" alt="سُحُب"/><span>·</span><span dir="ltr">@Suhub.apps</span></div></div>';
 }
 function printReport() {
-  const hdr = $('rpt-print-header'); if (hdr) hdr.style.display = 'block';
+  const hdr = $('rpt-print-header'), ftr = $('rpt-print-footer');
+  if (hdr) hdr.style.display = 'block'; if (ftr) ftr.style.display = 'flex';
   window.print();
-  setTimeout(() => { if (hdr) hdr.style.display = 'none'; }, 800);
+  setTimeout(() => { if (hdr) hdr.style.display = 'none'; if (ftr) ftr.style.display = 'none'; }, 800);
 }
 function sheetHtml({ title, meta, color, summary, head, rows, sign }) {
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width"/><title>${esc(title)}</title>
@@ -1994,6 +2046,7 @@ function sheetHtml({ title, meta, color, summary, head, rows, sign }) {
   <div class="summary">${summary.map(([v, l, c]) => `<div class="s-item"><div class="s-val"${c ? ` style="color:${c}"` : ''}>${v}</div><div class="s-lbl">${l}</div></div>`).join('')}</div>
   <table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
   ${sign ? `<div class="sign">${sign.map(s => `<span>${s}: ________________</span>`).join('')}</div>` : ''}
+  <div style="margin-top:22px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:9px;color:#999;"><span>تطوير</span><img src="${SUHUB_LOGO}" alt="سُحُب" style="height:16px;width:auto;"/><span>·</span><span dir="ltr">@Suhub.apps</span></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
 }
 function openPrint(html) { const win = window.open('', '_blank'); if (!win) { toast('اسمح بالنوافذ المنبثقة للطباعة', 'warn'); return; } win.document.write(html); win.document.close(); }
