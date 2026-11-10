@@ -394,7 +394,7 @@ body.demo .demo-badge{display:inline-block;}
           <button class="dropdown-item" onclick="closeDropdown();openSettings()">⚙️ إعدادات المركز</button>
           <button class="dropdown-item blue" onclick="closeDropdown();openRenewal()">🔄 تجديد الفصل</button>
           <button class="dropdown-item" onclick="closeDropdown();openMsgModal()">✏️ رسالة التذكير</button>
-          <button class="dropdown-item" onclick="closeDropdown();openRcptMsgModal()">🧾 رسالة الإيصال</button>
+          <button class="dropdown-item rcpt-feature" style="display:none" onclick="closeDropdown();openRcptMsgModal()">🧾 رسالة الإيصال</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item" onclick="closeDropdown();exportBackup()">💾 تنزيل نسخة احتياطية</button>
           <button class="dropdown-item no-demo" onclick="closeDropdown();openImport()">📂 استيراد بيانات</button>
@@ -404,7 +404,7 @@ body.demo .demo-badge{display:inline-block;}
         </div>
       </div>
       <button class="btn wa" onclick="openBulk()">📲 تذكير الكل</button>
-      <button class="btn" style="color:var(--green-dark);border-color:var(--green-dark);" onclick="openReceipts()">🧾 تأكيد الدفع<span id="rcpt-count" style="font-weight:700;"></span></button>
+      <button class="btn rcpt-feature" style="display:none;color:var(--green-dark);border-color:var(--green-dark);" onclick="openReceipts()">🧾 تأكيد الدفع<span id="rcpt-count" style="font-weight:700;"></span></button>
     </div>
   </div>
 
@@ -704,7 +704,7 @@ body.demo .demo-badge{display:inline-block;}
   <div class="modal" style="width:420px;">
     <h2>✏ رسالة التذكير</h2>
     <div class="form-group"><textarea id="wa-msg-text" rows="6" style="resize:vertical;"></textarea>
-      <div class="hint">يُضاف اسم الحلقة أو الدورة تلقائياً في آخر الرسالة.</div></div>
+      <div class="hint">يُضاف اسم الطالبة تلقائياً بعد السطر الأول، ويمكن تحديد موضعه بكتابة {الاسم}. ويُضاف اسم الحلقة أو الدورة في آخر الرسالة.</div></div>
     <div class="modal-footer">
       <button class="btn sm" onclick="$('wa-msg-text').value=DEFAULT_MSG">↩ افتراضي</button>
       <button class="btn" onclick="closeOverlay('msg-overlay')">إلغاء</button>
@@ -878,6 +878,8 @@ let pinOk = false, pinBuffer = '';
 let curPage = 'students';
 const openCards = new Set();
 const SEMESTERS = ['الفصل الأول', 'الفصل الثاني', 'الفصل الصيفي'];
+// ميزة إيصالات الدفع معطّلة مؤقتاً — غيّرها إلى true لإعادتها
+const RECEIPTS_ENABLED = false;
 const DEFAULT_RCPT_INTRO = 'السلام عليكم ورحمة الله وبركاته\nنؤكد استلام الرسوم:';
 const DEFAULT_RCPT_OUTRO = 'جزاكم الله خيراً';
 const DEFAULT_MSG = 'السلام عليكم ورحمة الله وبركاته\nنذكّركم بسداد رسوم التسجيل\nجزاكم الله خيراً.';
@@ -897,7 +899,15 @@ function pctColor(p) { return p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--amber)
 // واتساب: الأرقام البحرينية 8 خانات ← يُضاف مفتاح 973
 function waPhone(p) { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.length === 8) d = '973' + d; return d; }
 function waLink(phone, text) { return `https://wa.me/${waPhone(phone)}?text=${encodeURIComponent(text)}`; }
-function reminderText(ref) { return (settings.waTemplate || DEFAULT_MSG) + (ref ? `\n(${ref})` : ''); }
+// اسم الطالبة: يُستبدل {الاسم} إن وُجد في القالب، وإلا يُضاف سطر بعد التحية
+function reminderText(ref, name) {
+  let t = settings.waTemplate || DEFAULT_MSG;
+  if (name) {
+    if (t.includes('{الاسم}')) t = t.split('{الاسم}').join(name);
+    else { const ls = t.split('\n'); ls.splice(1, 0, `${w('student')}: ${name}`); t = ls.join('\n'); }
+  } else t = t.split('{الاسم}').join('');
+  return t + (ref ? `\n(${ref})` : '');
+}
 function pmIcon(m) { return m === 'cash' ? '· 💵' : m === 'benefit' ? '· 🏦' : ''; }
 function pmLabel(m) { return m === 'cash' ? '· 💵 كاش' : m === 'benefit' ? '· 🏦 بنفت' : ''; }
 function downloadFile(name, content, type) {
@@ -1100,7 +1110,7 @@ function scheduleRender() {
 }
 function renderCurrent() {
   if ($('app').style.display !== 'block') return;
-  updateRcptCount();
+  if (RECEIPTS_ENABLED) { document.querySelectorAll('.rcpt-feature').forEach(el => el.style.display = ''); updateRcptCount(); }
   if ($('rcpt-overlay').classList.contains('open')) renderReceipts();
   if (curPage === 'students') renderStudents();
   else if (curPage === 'halaqat') renderHalaqat();
@@ -1393,10 +1403,10 @@ function openBulk() {
     seen.add(s.phone); list.push({ s, refs: late.map(sh => hById(sh.hid).name).join('، ') });
   });
   if (!list.length) { toast('🎉 لا يوجد متأخرون عن الدفع'); return; }
-  $('bulk-msg-preview').textContent = settings.waTemplate || DEFAULT_MSG;
+  $('bulk-msg-preview').textContent = reminderText('', 'اسم ' + w('student'));
   $('bulk-list').innerHTML = list.map(({ s, refs }) => `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--gray-bg);border-radius:var(--radius);gap:8px;">
     <div><div style="font-size:14px;font-weight:500;">${esc(s.name)}</div><div class="hint">${esc(refs)}</div></div>
-    <a href="${waLink(s.phone, reminderText(refs))}" target="_blank" rel="noopener" class="btn wa sm">📲 إرسال</a></div>`).join('');
+    <a href="${waLink(s.phone, reminderText(refs, s.name))}" target="_blank" rel="noopener" class="btn wa sm">📲 إرسال</a></div>`).join('');
   openOverlay('bulk-overlay');
 }
 
@@ -1450,7 +1460,7 @@ function renderStudents() {
 }
 function tH(sid, hid) { return `{k:'h',sid:'${esc(sid)}',hid:'${esc(hid)}'}`; }
 function tE(eid) { return `{k:'e',eid:'${esc(eid)}'}`; }
-function payBlockHtml(tStr, e, base, phone, ref) {
+function payBlockHtml(tStr, e, base, phone, ref, name) {
   const b = breakdown(e, base);
   if (b.noReminder) return `<span class="badge paid">✓ لا يلزم تذكير</span>`;
   if (e.feeType === 'installment' && Array.isArray(e.installments) && e.installments.length) {
@@ -1460,17 +1470,17 @@ function payBlockHtml(tStr, e, base, phone, ref) {
         <div class="row-gap">${it.paid
           ? `<span class="badge paid sm">✓ ${w('paid')}</span><button class="btn sm danger" onclick="startPay(${tStr},${i})">إلغاء</button>`
           : `<span class="badge unpaid sm">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},${i})">✓ دفع</button>`}</div></div>`).join('')}
-      <div class="inst-sum">مدفوع ${money(b.paid)} من ${money(b.expected)}${phone && !b.settled ? ` · <a class="wa-inline" href="${waLink(phone, reminderText(ref))}" target="_blank" rel="noopener">📲 تذكير</a>` : ''}</div></div>`;
+      <div class="inst-sum">مدفوع ${money(b.paid)} من ${money(b.expected)}${phone && !b.settled ? ` · <a class="wa-inline" href="${waLink(phone, reminderText(ref, name))}" target="_blank" rel="noopener">📲 تذكير</a>` : ''}</div></div>`;
   }
   if (e.paid) return `<div class="paid-col"><span class="badge paid">✓ ${w('paid')}</span>${e.paidAt ? `<span class="paid-date">📅 ${fmtDate(e.paidAt)} ${pmLabel(e.paymentMethod)}</span>` : ''}</div><button class="btn sm danger" onclick="startPay(${tStr},-1)">إلغاء</button>`;
-  return `<span class="badge unpaid">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},-1)">✓ تأكيد دفع</button>${phone ? `<a href="${waLink(phone, reminderText(ref))}" target="_blank" rel="noopener" class="btn wa sm">📲</a>` : ''}`;
+  return `<span class="badge unpaid">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},-1)">✓ تأكيد دفع</button>${phone ? `<a href="${waLink(phone, reminderText(ref, name))}" target="_blank" rel="noopener" class="btn wa sm">📲</a>` : ''}`;
 }
 function entryRowHtml(s, sh) {
   const h = hById(sh.hid), base = +h.amount || 0, eff = effAmt(sh, base), t = tH(s.id, sh.hid);
   const orig = sh.feeType && !['normal', 'installment'].includes(sh.feeType) ? ` (الأصلي: ${money(base)})` : '';
   return `<div class="halaqa-row${s.paused ? ' dim' : ''}">
     <div><div class="halaqa-name-txt">${esc(h.name)} ${feeLabel(sh, eff)}</div><div class="halaqa-amount-txt">${money(eff)}${orig}</div></div>
-    <div class="row-gap">${payBlockHtml(t, sh, base, s.phone, h.name)}<button class="btn sm gear" onclick="openFeeType(${t})" title="نوع الرسوم">⚙</button></div></div>`;
+    <div class="row-gap">${payBlockHtml(t, sh, base, s.phone, h.name, s.name)}<button class="btn sm gear" onclick="openFeeType(${t})" title="نوع الرسوم">⚙</button></div></div>`;
 }
 function studentCardHtml(s) {
   const entries = studentEntries(s), t = studentSum(s);
@@ -1571,10 +1581,10 @@ function confirmPayMethod(m) {
   if (!pendingPay) return; const { t, inst } = pendingPay; pendingPay = null; closeOverlay('paymethod-overlay');
   const g = getTarget(t); if (!g) return; const e = g.entry, now = new Date().toISOString();
   if (inst >= 0) {
-    const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m; it.receiptPending = true;
+    const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m; it.receiptPending = RECEIPTS_ENABLED;
     if (e.installments.every(i => i.paid)) { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
-  } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; e.receiptPending = true; }
-  g.save(); toast((m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 بنفت') + ' · 🧾 أُضيفت للإيصالات');
+  } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; e.receiptPending = RECEIPTS_ENABLED; }
+  g.save(); toast((m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 بنفت') + (RECEIPTS_ENABLED ? ' · 🧾 أُضيفت للإيصالات' : ''));
 }
 
 // ===================== FEE TYPE =====================
@@ -1687,7 +1697,7 @@ function douraCardHtml(d) {
       <div><div class="halaqa-name-txt">${esc(e.name)} ${feeLabel(e, eff)}</div>
         <div class="halaqa-amount-txt">${esc(sec.name)} · ${money(eff)}${e.center ? ' · 🏫 ' + esc(e.center) : ''}${e.note ? ' · ' + esc(e.note) : ''}</div>
         <div class="halaqa-amount-txt" dir="ltr" style="text-align:right;">${esc(e.phone || '')}</div></div>
-      <div class="row-gap">${payBlockHtml(t, e, base, e.phone, d.name)}
+      <div class="row-gap">${payBlockHtml(t, e, base, e.phone, d.name, e.name)}
         <button class="btn sm gear" onclick="openFeeType(${t})">⚙</button>
         <button class="btn sm" onclick="openPersonModal('${esc(d.id)}','${esc(e.id)}')">✏</button>
         <button class="btn sm danger" onclick="deleteEnrollment('${esc(e.id)}')">🗑</button></div></div>`;
@@ -2155,7 +2165,7 @@ function openHelp() {
   const [title, items] = helpContent(curPage);
   $('help-title').textContent = '❓ ' + title;
   $('help-content').innerHTML = items.map(([i, t, d]) => `<div class="help-item"><div class="help-icon">${i}</div><div><div class="help-text-title">${esc(t)}</div><div class="help-text-desc">${esc(d)}</div></div></div>`).join('')
-    + `<div class="help-item"><div class="help-icon">🧾</div><div><div class="help-text-title">تأكيد الدفع</div><div class="help-text-desc">كل دفعة تتأكد تنضاف لزر "🧾 تأكيد الدفع" فوق — ترسل منه إيصال واتساب لكل دفعة.</div></div></div>`
+    + (RECEIPTS_ENABLED ? `<div class="help-item"><div class="help-icon">🧾</div><div><div class="help-text-title">تأكيد الدفع</div><div class="help-text-desc">كل دفعة تتأكد تنضاف لزر "🧾 تأكيد الدفع" فوق — ترسل منه إيصال واتساب لكل دفعة.</div></div></div>` : '')
     + `<div class="help-item"><div class="help-icon">☁️</div><div><div class="help-text-title">الحفظ السحابي</div><div class="help-text-desc">كل تعديل يُحفظ فوراً ويظهر على كل الأجهزة. بدون إنترنت يُحفظ على الجهاز ويُرفع تلقائياً عند الاتصال.</div></div></div>`;
   openOverlay('help-overlay');
 }
