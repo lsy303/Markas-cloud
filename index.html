@@ -988,7 +988,7 @@ async function doLogin() {
   const err = $('login-error'), btn = $('login-btn');
   if (!email || !pass) { err.textContent = 'يرجى إدخال البريد وكلمة المرور'; return; }
   btn.disabled = true; btn.textContent = '⏳ جارٍ الدخول...'; err.textContent = '';
-  try { await auth.signInWithEmailAndPassword(email, pass); $('login-password').value = ''; }
+  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); await auth.signInWithEmailAndPassword(email, pass); $('login-password').value = ''; }
   catch (e) {
     btn.disabled = false; btn.textContent = 'دخول';
     const m = {
@@ -1003,7 +1003,8 @@ async function doLogin() {
 async function startDemo() {
   try { sessionStorage.setItem('demoTried', '1'); } catch (e) {}
   boot('جارٍ فتح النسخة التجريبية...');
-  try { await auth.signInWithEmailAndPassword(DEMO_EMAIL, DEMO_PASS); }
+  // دخول الديمو لا يُحفظ: ينتهي بإغلاق الصفحة، فلا يفتح الرابط الأصلي على الحساب التجريبي لاحقاً
+  try { await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION); await auth.signInWithEmailAndPassword(DEMO_EMAIL, DEMO_PASS); }
   catch (e) { show('login-screen'); $('login-error').textContent = 'تعذر فتح النسخة التجريبية — حاول مرة أخرى'; }
 }
 async function forgotPassword() {
@@ -1067,6 +1068,8 @@ auth.onAuthStateChanged(u => {
     if (DEMO_LINK && !sessionStorage.getItem('demoTried')) { startDemo(); return; }
     show('login-screen'); return;
   }
+  // الرابط الأصلي (بدون ?demo) لا يفتح الحساب التجريبي أبداً
+  if (!DEMO_LINK && (u.email || '').toLowerCase() === DEMO_EMAIL) { auth.signOut(); return; }
   boot('جارٍ التحقق من الاشتراك...');
   unsubLic = db.collection('licenses').doc(u.uid).onSnapshot(snap => {
     if (!snap.exists && snap.metadata.fromCache) { boot('بانتظار الاتصال بالإنترنت...'); return; }
