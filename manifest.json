@@ -1,6 +1,6 @@
 {
-  "name": "متابعة ميزانية المركز",
-  "short_name": "مركز",
+  "name": "تحصيل — متابعة رسوم مراكز التحفيظ",
+  "short_name": "تحصيل",
   "description": "نظام سحابي لمتابعة رسوم مراكز التحفيظ",
   "start_url": "./",
   "scope": "./",
@@ -11,8 +11,23 @@
   "background_color": "#F7F6F3",
   "theme_color": "#1D9E75",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

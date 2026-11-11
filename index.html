@@ -6,13 +6,13 @@
 <meta name="theme-color" content="#1D9E75"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-<meta name="apple-mobile-web-app-title" content="مركز"/>
+<meta name="apple-mobile-web-app-title" content="تحصيل"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <link rel="manifest" href="manifest.json"/>
-<title>متابعة ميزانية المركز</title>
+<title>تحصيل — متابعة رسوم مراكز التحفيظ</title>
 <meta name="description" content="نظام سحابي لإدارة الطلبة والحلقات والدورات ومتابعة الرسوم لمراكز التحفيظ."/>
-<meta property="og:title" content="متابعة ميزانية المركز"/>
+<meta property="og:title" content="تحصيل — متابعة رسوم مراكز التحفيظ"/>
 <meta property="og:description" content="نظام سحابي لإدارة الطلبة والحلقات والدورات ومتابعة الرسوم لمراكز التحفيظ."/>
 <meta property="og:type" content="website"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -219,6 +219,8 @@ tr:last-child td{border-bottom:none;}
 
 .renew-banner{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 20px;font-size:13px;font-weight:500;}
 .renew-banner.show{display:flex;}
+.demo-banner{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 20px;font-size:13px;font-weight:500;background:var(--green-light);color:var(--green-dark);border-bottom:1px solid #bfe6d6;}
+body.demo .demo-banner{display:flex;}
 .renew-banner.warn{background:var(--amber-light);color:#7a4c0c;border-bottom:1px solid #f0d9a8;}
 .renew-banner.danger{background:var(--red-light);color:#8f2020;border-bottom:1px solid #f0b0b0;}
 .contact-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;}
@@ -285,7 +287,7 @@ body.demo .demo-badge{display:inline-block;}
   <div class="screen-card">
     <div class="screen-icon">🔐</div>
     <div class="screen-title">تسجيل الدخول</div>
-    <div class="screen-sub">متابعة ميزانية المركز</div>
+    <div class="screen-sub">تحصيل — متابعة رسوم مراكز التحفيظ</div>
     <div class="form-group">
       <label>البريد الإلكتروني</label>
       <input type="email" id="login-email" placeholder="example@email.com" dir="ltr" autocomplete="username"/>
@@ -300,6 +302,7 @@ body.demo .demo-badge{display:inline-block;}
     </div>
     <button class="btn primary block" onclick="doLogin()" id="login-btn">دخول</button>
     <div style="margin-top:14px;"><button class="btn sm" style="color:var(--text-muted);font-size:11px;" onclick="forgotPassword()">نسيت كلمة المرور؟</button></div>
+    <button class="btn block" style="margin-top:10px;color:var(--green-dark);border-color:var(--green-dark);" onclick="startDemo()">🧪 جرّب النسخة التجريبية</button>
     <div class="brand-mark"><span>تطوير</span><img class="suhub-img" alt="سُحُب"/><span>·</span><a href="https://instagram.com/suhub.apps" target="_blank" rel="noopener" dir="ltr">@Suhub.apps</a></div>
   </div>
 </div>
@@ -408,6 +411,10 @@ body.demo .demo-badge{display:inline-block;}
     </div>
   </div>
 
+  <div class="demo-banner">
+    <span>🧪 نسخة تجريبية — جرّب بحرية، فالتعديلات لا تُحفظ وتعود البيانات لأصلها عند إعادة فتح الصفحة.</span>
+    <a class="btn wa sm" id="demo-wa" href="#" target="_blank" rel="noopener">📲 اطلب تجربتك المجانية 14 يوماً</a>
+  </div>
   <div class="renew-banner" id="renew-banner">
     <span id="renew-text"></span>
     <a class="btn wa sm" id="renew-wa" href="#" target="_blank" rel="noopener">📲 تجديد الاشتراك</a>
@@ -440,7 +447,7 @@ body.demo .demo-badge{display:inline-block;}
         </div>
       </div>
       <div id="students-list"></div>
-      <p class="export-note">البيانات محفوظة في السحابة وتتزامن تلقائياً بين كل الأجهزة ✓</p>
+      <p class="export-note no-demo">البيانات محفوظة في السحابة وتتزامن تلقائياً بين كل الأجهزة ✓</p>
     </div>
   </div>
 
@@ -872,6 +879,10 @@ const COLS = ['halaqat', 'students', 'dourat', 'enrollments'];
 const D = { halaqat: [], students: [], dourat: [], enrollments: [] };
 let settings = {};
 let user = null, centerRef = null, unsubs = [], unsubLic = null;
+// الحساب التجريبي: يُفتح بضغطة أو بالرابط ?demo — التعديلات محلية في الذاكرة فقط ولا تُرفع للسحابة
+const DEMO_EMAIL = 'demo@markas.test', DEMO_PASS = '123456';
+const DEMO_LINK = /[?&#]demo\b/.test(location.search + location.hash);
+let demoDetached = false;
 let isDemo = false; // licenses/{uid}.demo == true ← حساب عرض: بدون تغيير كلمة المرور / PIN / استيراد / مسح الكل
 let loaded = {}, pending = {};
 let pinOk = false, pinBuffer = '';
@@ -989,6 +1000,12 @@ async function doLogin() {
     err.textContent = m[e.code] || 'تعذر تسجيل الدخول';
   }
 }
+async function startDemo() {
+  try { sessionStorage.setItem('demoTried', '1'); } catch (e) {}
+  boot('جارٍ فتح النسخة التجريبية...');
+  try { await auth.signInWithEmailAndPassword(DEMO_EMAIL, DEMO_PASS); }
+  catch (e) { show('login-screen'); $('login-error').textContent = 'تعذر فتح النسخة التجريبية — حاول مرة أخرى'; }
+}
 async function forgotPassword() {
   const email = $('login-email').value.trim();
   if (!email) { $('login-error').textContent = 'اكتب البريد الإلكتروني أولاً ثم اضغط "نسيت كلمة المرور"'; return; }
@@ -1015,7 +1032,7 @@ let license = null;
 function expDate(l) { return l && l.expiresAt && typeof l.expiresAt.toDate === 'function' ? l.expiresAt.toDate() : null; }
 function renewLink(expired) {
   const name = (settings && settings.centerName) || (license && license.centerName) || '';
-  const msg = `السلام عليكم، ${expired ? 'انتهى' : 'قارب على الانتهاء'} اشتراك ${name ? name + ' ' : ''}في نظام متابعة ميزانية المركز، ونرغب بالتجديد.\nالحساب: ${user ? user.email : ''}`;
+  const msg = `السلام عليكم، ${expired ? 'انتهى' : 'قارب على الانتهاء'} اشتراك ${name ? name + ' ' : ''}في تطبيق تحصيل، ونرغب بالتجديد.\nالحساب: ${user ? user.email : ''}`;
   return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(msg)}`;
 }
 function showSuspended(lic) {
@@ -1047,6 +1064,7 @@ auth.onAuthStateChanged(u => {
   user = u; pinOk = false;
   if (!u) {
     $('login-btn').disabled = false; $('login-btn').textContent = 'دخول';
+    if (DEMO_LINK && !sessionStorage.getItem('demoTried')) { startDemo(); return; }
     show('login-screen'); return;
   }
   boot('جارٍ التحقق من الاشتراك...');
@@ -1080,6 +1098,7 @@ function startData() {
   }, onListenErr)));
 }
 function stopData() {
+  demoDetached = false;
   unsubs.forEach(f => { try { f(); } catch (e) {} });
   unsubs = []; centerRef = null; settings = {};
   COLS.forEach(c => D[c] = []); openCards.clear();
@@ -1094,6 +1113,7 @@ function onListenErr(e) {
 function onData() {
   updateSync();
   if (!['settings', ...COLS].every(k => loaded[k])) return;
+  if (isDemo && !demoDetached) { demoDetached = true; unsubs.forEach(f => { try { f(); } catch (e) {} }); unsubs = []; pending = {}; }
   if (!settings.centerName) { openSetup(); return; }
   if ($('app').style.display !== 'block') {
     show('app'); applyWords();
@@ -1101,6 +1121,7 @@ function onData() {
     maybeStartTour();
   }
   applyCenter();
+  if (isDemo) $('demo-wa').href = `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent('السلام عليكم، جرّبت النسخة التجريبية من تطبيق تحصيل، وأرغب بتجربة مجانية لمدة 14 يوماً على بيانات مركزنا.')}`;
   scheduleRender();
 }
 let _renderQueued = false;
@@ -1120,6 +1141,7 @@ function renderCurrent() {
 }
 function updateSync() {
   const el = $('sync'); if (!el) return;
+  if (isDemo) { el.textContent = '🧪 وضع تجريبي · لا يُحفظ'; el.className = 'sync warn'; return; }
   const p = Object.values(pending).some(Boolean);
   if (!navigator.onLine) { el.textContent = '🟠 غير متصل · يُرفع عند الاتصال'; el.className = 'sync warn'; }
   else if (p) { el.textContent = '⏳ جارٍ الحفظ...'; el.className = 'sync'; }
@@ -1135,10 +1157,16 @@ function writeErr(e) {
   console.error(e);
   toast(e.code === 'permission-denied' ? '⛔ لا توجد صلاحية — تحقق من الاشتراك' : '⚠️ تعذر الحفظ: ' + (e.code || e.message), 'error', 4000);
 }
-function putDoc(c, o) { if (!o.id) o.id = uid(); col(c).doc(o.id).set({ ...clean(o), updatedAt: FV.serverTimestamp() }).catch(writeErr); return o.id; }
-function patchDoc(c, id, data) { col(c).doc(id).update({ ...JSON.parse(JSON.stringify(data)), updatedAt: FV.serverTimestamp() }).catch(writeErr); }
-function delDoc(c, id) { col(c).doc(id).delete().catch(writeErr); }
-function saveSettings(p) { return centerRef.set({ ...p, updatedAt: FV.serverTimestamp() }, { merge: true }).catch(writeErr); }
+// في الوضع التجريبي: الكتابة على نسخة الذاكرة فقط
+function demoWrite(fn) { fn(); scheduleRender(); }
+function putDoc(c, o) { if (isDemo) { if (!o.id) o.id = uid(); const v = { ...JSON.parse(JSON.stringify(o)) }; demoWrite(() => { D[c] = D[c].filter(x => x.id !== v.id).concat(v); }); return o.id; }
+  if (!o.id) o.id = uid(); col(c).doc(o.id).set({ ...clean(o), updatedAt: FV.serverTimestamp() }).catch(writeErr); return o.id; }
+function patchDoc(c, id, data) { if (isDemo) { const d = JSON.parse(JSON.stringify(data)); demoWrite(() => { D[c] = D[c].map(x => x.id === id ? { ...x, ...d } : x); }); return; }
+  col(c).doc(id).update({ ...JSON.parse(JSON.stringify(data)), updatedAt: FV.serverTimestamp() }).catch(writeErr); }
+function delDoc(c, id) { if (isDemo) { demoWrite(() => { D[c] = D[c].filter(x => x.id !== id); }); return; }
+  col(c).doc(id).delete().catch(writeErr); }
+function saveSettings(p) { if (isDemo) { const d = JSON.parse(JSON.stringify(p, (k, v) => (v && typeof v === 'object' && v.constructor && /FieldValue|Sentinel/.test(v.constructor.name)) ? undefined : v)); settings = { ...settings, ...d }; applyCenter(); scheduleRender(); return Promise.resolve(); }
+  return centerRef.set({ ...p, updatedAt: FV.serverTimestamp() }, { merge: true }).catch(writeErr); }
 // دفعات Firestore (حد 500 عملية) — awaitEach للاستيراد فقط
 async function commitOps(ops, onProgress) {
   for (let i = 0; i < ops.length; i += 400) {

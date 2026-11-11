@@ -16,10 +16,15 @@ service cloud.firestore {
     }
 
     // بيانات المركز وكل الجداول الفرعية
+    // الحساب التجريبي (demo == true): قراءة فقط — بياناته لا تتغير مهما عدّل الزوار
     match /centers/{centerId}/{document=**} {
-      allow read, write: if request.auth != null
+      allow read: if request.auth != null
         && request.auth.uid == centerId
         && licensed(centerId);
+      allow write: if request.auth != null
+        && request.auth.uid == centerId
+        && licensed(centerId)
+        && get(/databases/$(database)/documents/licenses/$(centerId)).data.get('demo', false) != true;
     }
   }
 }
