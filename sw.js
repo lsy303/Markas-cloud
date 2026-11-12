@@ -1,7 +1,7 @@
 // Service Worker — markas-cloud
 // HTML: الشبكة أولاً (التحديثات توصل تلقائياً) — باقي الملفات: الكاش أولاً
-const CACHE = 'markas-cloud-v11';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'markas-cloud-v12';
+const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(ASSETS.map(a => c.add(a).catch(() => {})))));

@@ -285,7 +285,7 @@ body.demo .demo-badge{display:inline-block;}
 <!-- ============ LOGIN ============ -->
 <div class="screen" id="login-screen">
   <div class="screen-card">
-    <div class="screen-icon">🔐</div>
+    <div class="screen-icon"><img src="icon-192.png" alt="" style="width:64px;height:64px;border-radius:14px;"/></div>
     <div class="screen-title">تسجيل الدخول</div>
     <div class="screen-sub">تحصيل — متابعة رسوم مراكز التحفيظ</div>
     <div class="form-group">
@@ -325,7 +325,7 @@ body.demo .demo-badge{display:inline-block;}
 <!-- ============ SETUP ============ -->
 <div class="screen" id="setup-screen">
   <div class="screen-card">
-    <div class="screen-icon">📖</div>
+    <div class="screen-icon"><img src="icon-192.png" alt="" style="width:64px;height:64px;border-radius:14px;"/></div>
     <div class="screen-title">إعداد المركز</div>
     <div class="screen-sub">خطوة واحدة قبل البدء</div>
     <div class="form-group"><label>اسم المركز</label><input type="text" id="setup-name" placeholder="مثال: مركز نور القرآن"/></div>
@@ -383,7 +383,7 @@ body.demo .demo-badge{display:inline-block;}
 <div id="app" style="display:none;">
   <div class="topbar">
     <div class="topbar-title">
-      <div class="logo" id="topbar-logo">📖</div>
+      <div class="logo" id="topbar-logo"><img src="icon-192.png" alt=""/></div>
       <div>
         <h1><span id="topbar-name">مركز التحفيظ</span><span class="demo-badge">نسخة تجريبية</span></h1>
         <p>متابعة الرسوم · <span id="semester-label" style="color:var(--green-dark);font-weight:600;"></span></p>
@@ -1259,7 +1259,7 @@ function saveSetup() {
 function applyCenter() {
   $('topbar-name').textContent = settings.centerName || 'مركز التحفيظ';
   $('semester-label').textContent = settings.semester || '';
-  $('topbar-logo').innerHTML = settings.logo ? `<img src="${esc(settings.logo)}" alt=""/>` : '📖';
+  $('topbar-logo').innerHTML = settings.logo ? `<img src="${esc(settings.logo)}" alt=""/>` : '<img src="icon-192.png" alt=""/>';
   applyWords();
   updateRenewBanner();
 }
