@@ -333,6 +333,7 @@ body.demo .demo-badge{display:inline-block;}
       <label>نوع المركز</label>
       <select id="setup-gender"><option value="f">مركز بنات</option><option value="m">مركز بنين</option></select>
     </div>
+    <div class="form-group"><label>الدولة والعملة</label><select id="setup-country"><option value="BH">البحرين — دينار بحريني</option><option value="SA">السعودية — ريال سعودي</option><option value="KW">الكويت — دينار كويتي</option><option value="AE">الإمارات — درهم إماراتي</option><option value="QA">قطر — ريال قطري</option><option value="OM">عُمان — ريال عُماني</option></select></div>
     <div class="form-group">
       <label>الفصل الدراسي الحالي</label>
       <select id="setup-semester"></select>
@@ -525,7 +526,7 @@ body.demo .demo-badge{display:inline-block;}
     <div id="paymethod-info" class="info-box"></div>
     <div style="display:flex;gap:10px;">
       <button class="btn confirm paymethod" onclick="confirmPayMethod('cash')">💵<span>كاش</span></button>
-      <button class="btn confirm paymethod" onclick="confirmPayMethod('benefit')">🏦<span>بنفت</span></button>
+      <button class="btn confirm paymethod" onclick="confirmPayMethod('benefit')">🏦<span class="tr-label">بنفت</span></button>
     </div>
     <div class="modal-footer"><button class="btn" onclick="closeOverlay('paymethod-overlay')">إلغاء</button></div>
   </div>
@@ -559,7 +560,7 @@ body.demo .demo-badge{display:inline-block;}
     </div>
     <div class="form-group"><label data-w="teacherL"></label><input type="text" id="h-teacher"/></div>
     <div class="form-group"><label data-w="supervisorL"></label><input type="text" id="h-supervisor"/></div>
-    <div class="form-group"><label>المبلغ الفصلي (د.ب)</label><input type="number" id="h-amount" placeholder="10" min="0" step="0.001"/></div>
+    <div class="form-group"><label>المبلغ الفصلي (<span class="cur-sym">د.ب</span>)</label><input type="number" id="h-amount" placeholder="10" min="0" step="0.001"/></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeOverlay('halaqa-overlay')">إلغاء</button>
       <button class="btn primary" onclick="saveHalaqa()">💾 حفظ</button>
@@ -634,7 +635,7 @@ body.demo .demo-badge{display:inline-block;}
       </select>
     </div>
     <div class="form-group" id="ft-amount-group" style="display:none;">
-      <label id="ft-amount-label">المبلغ (د.ب)</label>
+      <label id="ft-amount-label">المبلغ (<span class="cur-sym">د.ب</span>)</label>
       <input type="number" id="ft-amount" min="0" step="0.001"/>
     </div>
     <div class="form-group" id="ft-inst-group" style="display:none;">
@@ -672,6 +673,7 @@ body.demo .demo-badge{display:inline-block;}
     <h2>⚙ إعدادات المركز</h2>
     <div class="form-group"><label>اسم المركز</label><input type="text" id="cs-name"/></div>
     <div class="form-group"><label>نوع المركز</label><select id="cs-gender"><option value="f">مركز بنات</option><option value="m">مركز بنين</option></select></div>
+    <div class="form-group"><label>الدولة والعملة</label><select id="cs-country"><option value="BH">البحرين — دينار بحريني</option><option value="SA">السعودية — ريال سعودي</option><option value="KW">الكويت — دينار كويتي</option><option value="AE">الإمارات — درهم إماراتي</option><option value="QA">قطر — ريال قطري</option><option value="OM">عُمان — ريال عُماني</option></select><div class="hint">تُحدّد العملة المعروضة ومفتاح الدولة في رسائل واتساب</div></div>
     <div class="form-group">
       <label>الشعار (اختياري)</label>
       <div class="row-gap">
@@ -900,15 +902,27 @@ const $ = id => document.getElementById(id);
 function uid() { return Math.random().toString(36).slice(2, 11) + Date.now().toString(36); }
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function r3(n) { return Math.round((+n || 0) * 1000) / 1000; }
-function money(n) { return r3(n) + ' د.ب'; }
+// الدولة والعملة: تُضبط من «إعدادات المركز» — الافتراضي البحرين
+const COUNTRIES = {
+  BH: { name: 'البحرين',  sym: 'د.ب', dec: 3, dial: '973', len: 8, transfer: 'بنفت' },
+  SA: { name: 'السعودية', sym: 'ر.س', dec: 2, dial: '966', len: 9, transfer: 'تحويل' },
+  KW: { name: 'الكويت',   sym: 'د.ك', dec: 3, dial: '965', len: 8, transfer: 'تحويل' },
+  AE: { name: 'الإمارات', sym: 'د.إ', dec: 2, dial: '971', len: 9, transfer: 'تحويل' },
+  QA: { name: 'قطر',      sym: 'ر.ق', dec: 2, dial: '974', len: 8, transfer: 'تحويل' },
+  OM: { name: 'عُمان',     sym: 'ر.ع', dec: 3, dial: '968', len: 8, transfer: 'تحويل' }
+};
+function cur() { return COUNTRIES[settings && settings.country] || COUNTRIES.BH; }
+function num(n) { const d = cur().dec, f = Math.pow(10, d); return String(Math.round((+n || 0) * f) / f); }
+function money(n) { return num(n) + ' ' + cur().sym; }
+function trLabel() { return cur().transfer; }
 function fmtDate(iso) { if (!iso) return ''; try { return new Date(iso).toLocaleDateString('ar-BH', { day:'2-digit', month:'2-digit', year:'numeric' }); } catch (e) { return ''; } }
 function todayStr() { return new Date().toLocaleDateString('ar-BH'); }
 function fileDate() { return new Date().toISOString().slice(0, 10); }
 function sortAr(arr, key = 'name') { return arr.slice().sort((a, b) => String(a[key] || '').localeCompare(String(b[key] || ''), 'ar')); }
 function debounce(fn, ms = 200) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function pctColor(p) { return p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--amber)' : 'var(--red)'; }
-// واتساب: الأرقام البحرينية 8 خانات ← يُضاف مفتاح 973
-function waPhone(p) { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.length === 8) d = '973' + d; return d; }
+// واتساب: الرقم المحلي ← يُضاف مفتاح دولة المركز (مثال: 8 خانات في البحرين ← 973)
+function waPhone(p) { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0')) d = d.slice(1); const c = cur(); if (d.length === c.len) d = c.dial + d; return d; }
 function waLink(phone, text) { return `https://wa.me/${waPhone(phone)}?text=${encodeURIComponent(text)}`; }
 // اسم الطالبة: يُستبدل {الاسم} إن وُجد في القالب، وإلا يُضاف سطر بعد التحية
 function reminderText(ref, name) {
@@ -920,7 +934,7 @@ function reminderText(ref, name) {
   return t + (ref ? `\n(${ref})` : '');
 }
 function pmIcon(m) { return m === 'cash' ? '· 💵' : m === 'benefit' ? '· 🏦' : ''; }
-function pmLabel(m) { return m === 'cash' ? '· 💵 كاش' : m === 'benefit' ? '· 🏦 بنفت' : ''; }
+function pmLabel(m) { return m === 'cash' ? '· 💵 كاش' : m === 'benefit' ? '· 🏦 ' + trLabel() : ''; }
 function downloadFile(name, content, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -1254,14 +1268,21 @@ function saveSetup() {
   if (!name) { toast('يرجى إدخال اسم المركز', 'warn'); return; }
   if (pinOn && !/^\d{4}$/.test(pin)) { toast('رمز الدخول يجب أن يكون 4 أرقام', 'warn'); return; }
   pinOk = true;
-  saveSettings({ centerName: name, gender: $('setup-gender').value, semester: $('setup-semester').value, pin: (pinOn && !isDemo) ? pin : '', waTemplate: DEFAULT_MSG, createdAt: FV.serverTimestamp() });
+  saveSettings({ centerName: name, gender: $('setup-gender').value, country: $('setup-country').value, semester: $('setup-semester').value, pin: (pinOn && !isDemo) ? pin : '', waTemplate: DEFAULT_MSG, createdAt: FV.serverTimestamp() });
 }
 function applyCenter() {
   $('topbar-name').textContent = settings.centerName || 'مركز التحفيظ';
   $('semester-label').textContent = settings.semester || '';
   $('topbar-logo').innerHTML = settings.logo ? `<img src="${esc(settings.logo)}" alt=""/>` : '<img src="icon-192.png" alt=""/>';
   applyWords();
+  applyCurrency();
   updateRenewBanner();
+}
+function applyCurrency() {
+  const c = cur(), step = c.dec === 3 ? '0.001' : '0.01';
+  document.querySelectorAll('.cur-sym').forEach(e => e.textContent = c.sym);
+  document.querySelectorAll('.tr-label').forEach(e => e.textContent = c.transfer);
+  ['h-amount', 'ft-amount'].forEach(id => { const e = $(id); if (e) e.step = step; });
 }
 
 // ===================== PIN LOCK =====================
@@ -1293,6 +1314,7 @@ let pendingLogo = '';
 function openSettings() {
   $('cs-name').value = settings.centerName || '';
   $('cs-gender').value = settings.gender || 'f';
+  $('cs-country').value = COUNTRIES[settings.country] ? settings.country : 'BH';
   pendingLogo = settings.logo || ''; renderLogoPreview();
   $('cs-pin-toggle').checked = !!settings.pin;
   $('cs-pin-wrap').style.display = settings.pin ? 'block' : 'none';
@@ -1338,7 +1360,7 @@ async function saveSettingsModal() {
     btn.disabled = false;
   }
   const pin = !pinOn ? '' : (newPin || settings.pin || '');
-  saveSettings({ centerName: name, gender: $('cs-gender').value, logo: pendingLogo || '', pin });
+  saveSettings({ centerName: name, gender: $('cs-gender').value, country: $('cs-country').value, logo: pendingLogo || '', pin });
   closeOverlay('settings-overlay'); toast('✅ تم حفظ الإعدادات');
 }
 
@@ -1375,7 +1397,7 @@ function plainDate(iso) { if (!iso) return ''; const d = new Date(iso); if (isNa
 function receiptText(r) {
   const lines = [settings.receiptIntro || DEFAULT_RCPT_INTRO,
     `الاسم: ${r.name}`, `البيان: ${r.ref}`,
-    `المبلغ: ${money(r.amount)}${r.method === 'cash' ? ' · كاش' : r.method === 'benefit' ? ' · بنفت' : ''}`,
+    `المبلغ: ${money(r.amount)}${r.method === 'cash' ? ' · كاش' : r.method === 'benefit' ? ' · ' + trLabel() : ''}`,
     `التاريخ: ${plainDate(r.paidAt)}`];
   if (r.remaining > 0) lines.push(`المتبقي: ${money(r.remaining)}`);
   lines.push(`${settings.receiptOutro || DEFAULT_RCPT_OUTRO} — ${settings.centerName || ''}`);
@@ -1615,7 +1637,7 @@ function confirmPayMethod(m) {
     const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m; it.receiptPending = RECEIPTS_ENABLED;
     if (e.installments.every(i => i.paid)) { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
   } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; e.receiptPending = RECEIPTS_ENABLED; }
-  g.save(); toast((m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 بنفت') + (RECEIPTS_ENABLED ? ' · 🧾 أُضيفت للإيصالات' : ''));
+  g.save(); toast((m === 'cash' ? '✅ تم تسجيل الدفعة · 💵 كاش' : '✅ تم تسجيل الدفعة · 🏦 ' + trLabel()) + (RECEIPTS_ENABLED ? ' · 🧾 أُضيفت للإيصالات' : ''));
 }
 
 // ===================== FEE TYPE =====================
@@ -1631,8 +1653,8 @@ function updateFtFields() {
   const t = $('ft-select').value; const g = feeTarget && getTarget(feeTarget);
   $('ft-amount-group').style.display = (t === 'reduced' || t === 'sponsored') ? 'block' : 'none';
   $('ft-inst-group').style.display = t === 'installment' ? 'block' : 'none';
-  $('ft-amount-label').textContent = t === 'sponsored' ? 'المبلغ المدفوع من الكفيل (د.ب)' : 'المبلغ المخفض (د.ب)';
-  if (t === 'installment' && g) { const ins = buildInstallments(g.base, +$('ft-inst').value); $('ft-inst-preview').textContent = `الدفعات: ${ins.map(i => r3(i.amount)).join(' + ')} = ${money(g.base)}`; }
+  $('ft-amount-label').textContent = t === 'sponsored' ? `المبلغ المدفوع من الكفيل (${cur().sym})` : `المبلغ المخفض (${cur().sym})`;
+  if (t === 'installment' && g) { const ins = buildInstallments(g.base, +$('ft-inst').value); $('ft-inst-preview').textContent = `الدفعات: ${ins.map(i => num(i.amount)).join(' + ')} = ${money(g.base)}`; }
 }
 async function saveFeeType() {
   const g = getTarget(feeTarget); if (!g) return; const e = g.entry;
@@ -1733,7 +1755,7 @@ function douraCardHtml(d) {
         <button class="btn sm" onclick="openPersonModal('${esc(d.id)}','${esc(e.id)}')">✏</button>
         <button class="btn sm danger" onclick="deleteEnrollment('${esc(e.id)}')">🗑</button></div></div>`;
   }).join('');
-  const secSummary = secs.map(sec => `<span class="badge halaqa">${esc(sec.name)}: ${st.list.filter(e => sectionOf(e).id === sec.id).length} (${r3(sec.amount)} د.ب)</span>`).join(' ');
+  const secSummary = secs.map(sec => `<span class="badge halaqa">${esc(sec.name)}: ${st.list.filter(e => sectionOf(e).id === sec.id).length} (${money(sec.amount)})</span>`).join(' ');
   return `<div class="student-card doura">
     <div class="student-header" onclick="toggleCard('${esc(cid)}')">
       <div style="flex:1;pointer-events:none;">
@@ -1741,7 +1763,7 @@ function douraCardHtml(d) {
         <div class="student-phone">${d.date ? esc(d.date) + ' · ' : ''}${st.list.length} ${w('registered')} · ${w('paidPl')}: ${st.paidCount} · ${w('notPaidPl')}: ${st.unpaidCount}</div>
         <div style="margin-top:5px;">${secSummary}</div>
       </div>
-      <div class="hdr-right"><span class="badge amber">${r3(st.paid)}/${money(st.expected)}</span><span class="chev">⌄</span></div>
+      <div class="hdr-right"><span class="badge amber">${num(st.paid)}/${money(st.expected)}</span><span class="chev">⌄</span></div>
     </div>
     <div class="student-body${openCards.has(cid) ? ' open' : ''}" id="${esc(cid)}">
       <div class="row-gap" style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--gray-border);">
@@ -2096,7 +2118,7 @@ function printHalaqaSheet(hid) {
   const rows = st.rows.map(({ s, sh, b }, i) => `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td dir="ltr">${esc(s.phone || '—')}</td><td>${money(b.expected)}</td><td>${money(b.paid)}</td><td style="color:${b.settled ? '#0F6E56' : '#E24B4A'};font-weight:600;">${statusText(sh, b)}</td><td>${fmtDate(lastPaidAt(sh)) || '—'}</td><td></td></tr>`).join('');
   openPrint(sheetHtml({ title: `${settings.centerName} — كشف حلقة ${h.name}`, color: '#0F6E56',
     meta: `${h.teacher ? w('teacherH') + ': ' + esc(h.teacher) + ' · ' : ''}${h.supervisor ? w('supervisorH') + ': ' + esc(h.supervisor) + ' · ' : ''}${esc(settings.semester || '')} · ${todayStr()}`,
-    summary: [[st.rows.length, 'الإجمالي'], [st.paidCount, w('paidPl')], [st.rows.length - st.paidCount, w('notPaidPl'), '#E24B4A'], [money(st.paid), 'محصّل'], [money(st.remaining), 'متبقي', '#E24B4A'], ...(st.cash ? [['💵 ' + r3(st.cash), 'كاش']] : []), ...(st.benefit ? [['🏦 ' + r3(st.benefit), 'بنفت', '#185FA5']] : [])],
+    summary: [[st.rows.length, 'الإجمالي'], [st.paidCount, w('paidPl')], [st.rows.length - st.paidCount, w('notPaidPl'), '#E24B4A'], [money(st.paid), 'محصّل'], [money(st.remaining), 'متبقي', '#E24B4A'], ...(st.cash ? [['💵 ' + num(st.cash), 'كاش']] : []), ...(st.benefit ? [['🏦 ' + num(st.benefit), trLabel(), '#185FA5']] : [])],
     head: ['#', 'الاسم', 'الهاتف', 'الرسوم', 'المدفوع', 'الحالة', 'آخر دفع', 'توقيع'], rows,
     sign: ['توقيع ' + w('teacherH'), 'توقيع ' + w('supervisorH')] }));
 }
@@ -2114,7 +2136,7 @@ function exportReportExcel() {
   const sheetName = n => { let b = String(n || 'ورقة').replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 28) || 'ورقة', s = b, i = 2; while (used.has(s)) s = b.slice(0, 25) + ' ' + i++; used.add(s); return s; };
   const add = (name, rows) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!views'] = [{ RTL: true }]; XLSX.utils.book_append_sheet(wb, ws, sheetName(name)); };
   const hs = activeHalaqat();
-  if (hs.length) add('الحلقات', [['الحلقة', w('teacherH'), 'العدد', 'المتوقع', 'المحصّل', 'كاش', 'بنفت', 'المتبقي', 'نسبة التحصيل'],
+  if (hs.length) add('الحلقات', [['الحلقة', w('teacherH'), 'العدد', 'المتوقع', 'المحصّل', 'كاش', trLabel(), 'المتبقي', 'نسبة التحصيل'],
     ...hs.map(h => { const st = calcHalaqa(h); return [h.name, h.teacher || '', st.rows.length, st.expected, st.paid, st.cash, st.benefit, st.remaining, (st.expected ? Math.round(st.paid / st.expected * 100) : 100) + '%']; })]);
   if (D.students.length) add(w('studentsAll'), [['الاسم', 'الهاتف', 'رقم المستخدم', 'الرقم الشخصي', 'الحلقات', 'المتوقع', 'المدفوع', 'المتبقي', 'الحالة'],
     ...sortAr(D.students).map(s => { const t = studentSum(s); return [s.name, s.phone || '', s.userid || '', s.personalid || '', studentEntries(s).map(sh => hById(sh.hid).name).join(' / '), t.expected, t.paid, t.remaining, s.paused ? w('paused') : t.unsettled ? w('late') : w('complete')]; })]);
@@ -2184,7 +2206,7 @@ function confirmExcelImport() {
 // ===================== HELP & TOUR =====================
 function helpContent(page) {
   const C = {
-    students: ['الصفحة الرئيسية', [['🔍', 'البحث', 'بالاسم أو الهاتف أو رقم إقراء أو الرقم الشخصي'], ['+', w('addStudent'), 'مع تحديد الحلقة أو الحلقات'], ['✓', 'تأكيد الدفع', 'افتح البطاقة ثم "✓ تأكيد دفع" واختر كاش أو بنفت'], ['⚙', 'نوع الرسوم', 'عادي / إعفاء / مخفضة / كفالة / تقسيط'], ['⏸', 'إيقاف مؤقت', 'يُستبعد من الإحصائيات والتقارير دون حذف'], ['🌟', 'تسجيل في دورة', 'تسجيل مباشر من البطاقة']]],
+    students: ['الصفحة الرئيسية', [['🔍', 'البحث', 'بالاسم أو الهاتف أو رقم إقراء أو الرقم الشخصي'], ['+', w('addStudent'), 'مع تحديد الحلقة أو الحلقات'], ['✓', 'تأكيد الدفع', 'افتح البطاقة ثم "✓ تأكيد دفع" واختر كاش أو ' + trLabel()], ['⚙', 'نوع الرسوم', 'عادي / إعفاء / مخفضة / كفالة / تقسيط'], ['⏸', 'إيقاف مؤقت', 'يُستبعد من الإحصائيات والتقارير دون حذف'], ['🌟', 'تسجيل في دورة', 'تسجيل مباشر من البطاقة']]],
     halaqat: ['الحلقات', [['+', 'إضافة حلقة', 'الاسم والمبلغ الفصلي و' + w('teacherH')], ['📦', 'أرشفة', 'بدل الحذف — تبقى البيانات'], ['🗑', 'حذف', 'يزيل الحلقة من كل السجلات']]],
     dourat: ['الدورات والأنشطة', [['+', 'إضافة دورة', 'بأقسام متعددة ومبالغ مختلفة'], ['📊', 'استيراد Excel', 'إضافة جماعية للمسجلين'], ['📦', 'أرشفة', 'بعد انتهاء الدورة']]],
     reports: ['التقارير', [['🖨', 'طباعة / PDF', 'التقرير الكامل'], ['📊', 'Excel', 'ورقة لكل حلقة ودورة'], ['🖨', 'كشف', 'كشف منفصل مع خانة توقيع']]],

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة الإدارة | تحصيل</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --brand:#6e1530; --brand2:#4d0d23; --gold:#f2c14e; --paper:#F7F4F1; --ink:#2A1A20; --muted:#7A6A70; --line:#EADFE2;
+         --green:#1F9254; --red:#D64545; --amber:#B7791F; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Tajawal',sans-serif; background:var(--paper); color:var(--ink); min-height:100vh;}
+  header{background:linear-gradient(135deg,#8c2a4b,var(--brand2)); color:#fff; padding:16px; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  header .brand{display:flex; align-items:center; gap:12px;}
+  header img{width:44px; height:44px; border-radius:11px;}
+  header h1{font-weight:800; font-size:21px;} header h1 span{color:var(--gold);}
+  header .who{font-size:13px; opacity:.75;}
+  header button{background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:8px; padding:7px 12px; font-family:inherit; cursor:pointer;}
+  main{max-width:920px; margin:0 auto; padding:18px 16px 40px;}
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px;}
+  .stat{background:#fff; border-radius:12px; padding:12px; box-shadow:0 2px 10px rgba(77,13,35,.06);}
+  .stat .l{font-size:13px; color:var(--muted); font-weight:700;} .stat .v{font-weight:800; font-size:26px;}
+  .bar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;}
+  .filters{display:flex; gap:6px; flex-wrap:wrap; flex:1;}
+  .filters button{background:#fff; border:1px solid var(--line); border-radius:20px; padding:6px 14px; font-family:inherit; font-weight:700; font-size:14px; cursor:pointer; color:var(--muted);}
+  .filters button.on{background:var(--brand); color:#fff; border-color:var(--brand);}
+  .addBtn{background:var(--gold); color:var(--brand2); border:none; border-radius:10px; padding:10px 16px; font-family:inherit; font-weight:800; font-size:15px; cursor:pointer;}
+  .search{width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line); font-family:inherit; font-size:15px; margin-bottom:12px; background:#fff;}
+  .card{background:#fff; border-radius:14px; padding:14px; margin-bottom:10px; box-shadow:0 2px 10px rgba(77,13,35,.06);}
+  .row{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;}
+  .name{font-weight:800; font-size:18px;}
+  .meta{font-size:13.5px; color:var(--muted); margin-top:3px; line-height:1.8;}
+  .meta a{color:var(--green); font-weight:700; text-decoration:none;}
+  .pill{font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap;}
+  .pill.trial{background:#FFF1D6; color:var(--amber);} .pill.active{background:#E2F4EA; color:var(--green);}
+  .pill.expired{background:#FDECEC; color:var(--red);} .pill.suspended{background:#EEE; color:#555;} .pill.demo{background:#EAF0FB; color:#2C5AA0;}
+  .actions{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);}
+  .actions button{border:none; border-radius:8px; padding:8px 12px; font-family:inherit; font-weight:700; font-size:14px; cursor:pointer; background:var(--paper); color:var(--ink);}
+  .actions .primary{background:var(--brand); color:#fff;} .actions .danger{color:var(--red);}
+  .actions input{border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-family:inherit;}
+  .empty,.msg{text-align:center; color:var(--muted); padding:36px 0;}
+  .login{max-width:360px; margin:60px auto; background:#fff; border-radius:16px; padding:24px; display:none; flex-direction:column; gap:10px; box-shadow:0 2px 14px rgba(77,13,35,.08);}
+  .login img{width:64px; height:64px; border-radius:15px; align-self:center;}
+  .login input,.modal input,.modal select{padding:12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:15px; width:100%; background:#fff;}
+  .login button,.modal .go{padding:12px; border:none; border-radius:10px; background:var(--brand); color:#fff; font-family:inherit; font-weight:800; font-size:16px; cursor:pointer;}
+  .err{color:var(--red); font-size:14px; min-height:18px;}
+  .overlay{position:fixed; inset:0; background:rgba(40,10,20,.45); display:none; align-items:center; justify-content:center; padding:16px; z-index:20;}
+  .modal{background:#fff; border-radius:16px; padding:20px; width:100%; max-width:440px; display:flex; flex-direction:column; gap:10px; max-height:92vh; overflow:auto;}
+  .modal h2{font-size:19px; font-weight:800;}
+  .modal label{font-size:13.5px; font-weight:700; color:var(--muted); margin-bottom:-4px;}
+  .modal .hint{font-size:12.5px; color:var(--muted);}
+  .modal .row2{display:flex; gap:8px;} .modal .cancel{background:var(--paper); color:var(--ink); border:none; border-radius:10px; padding:12px; font-family:inherit; font-weight:700; cursor:pointer;}
+  .cred{background:var(--paper); border-radius:10px; padding:12px; font-size:14.5px; line-height:2; white-space:pre-wrap;}
+  .wa{background:#25D366 !important; color:#fff !important; text-align:center; text-decoration:none; border-radius:10px; padding:12px; font-weight:800;}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--brand2); color:#fff; padding:11px 18px; border-radius:10px; font-weight:700; display:none; z-index:30;}
+  @media (max-width:640px){ .stats{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="icon-192.png" alt=""><div><h1>تحصيل <span>· لوحة الإدارة</span></h1><div class="who" id="who"></div></div></div>
+  <button id="outBtn" style="display:none">خروج</button>
+</header>
+
+<form class="login" id="login">
+  <img src="icon-192.png" alt="">
+  <b style="font-size:18px; text-align:center;">دخول المشرف</b>
+  <input id="em" type="email" placeholder="البريد الإلكتروني" dir="ltr" required autocomplete="username">
+  <input id="pw" type="password" placeholder="كلمة المرور" dir="ltr" required autocomplete="current-password">
+  <button type="submit">دخول</button>
+  <div class="err" id="loginErr"></div>
+</form>
+
+<main id="main" style="display:none">
+  <div class="stats" id="stats"></div>
+  <div class="bar"><div class="filters" id="filters"></div><button class="addBtn" id="addBtn">+ إضافة مركز</button></div>
+  <input class="search" id="q" placeholder="بحث باسم المركز أو البريد أو الهاتف…">
+  <div id="list"><div class="msg">جارٍ التحميل…</div></div>
+</main>
+<div class="msg" id="status">جارٍ التحميل…</div>
+
+<!-- إضافة مركز -->
+<div class="overlay" id="addOv">
+  <form class="modal" id="addForm">
+    <h2>إضافة مركز جديد</h2>
+    <label>اسم المركز</label><input id="a-name" required placeholder="مثال: مركز النور لتحفيظ القرآن">
+    <label>البريد الإلكتروني للمسؤول</label><input id="a-email" type="email" dir="ltr" required placeholder="center@example.com">
+    <label>رقم الواتساب</label><input id="a-phone" dir="ltr" inputmode="tel" placeholder="36777179">
+    <label>الدولة</label>
+    <select id="a-country"><option value="BH">البحرين</option><option value="SA">السعودية</option><option value="KW">الكويت</option><option value="AE">الإمارات</option><option value="QA">قطر</option><option value="OM">عُمان</option></select>
+    <label>مدة التفعيل</label>
+    <select id="a-plan"><option value="trial">تجربة مجانية — 14 يوماً</option><option value="year">اشتراك سنة</option><option value="month">اشتراك شهر</option></select>
+    <label>كلمة المرور المؤقتة</label><input id="a-pass" dir="ltr" required minlength="6">
+    <div class="hint">أُنشئت تلقائياً، ويمكن للمركز تغييرها من «إعدادات المركز».</div>
+    <div class="err" id="addErr"></div>
+    <div class="row2"><button type="submit" class="go" style="flex:1" id="addGo">إنشاء الحساب وتفعيله</button><button type="button" class="cancel" data-close="addOv">إلغاء</button></div>
+  </form>
+</div>
+
+<!-- بيانات الدخول بعد الإنشاء -->
+<div class="overlay" id="doneOv">
+  <div class="modal">
+    <h2>✅ تم إنشاء الحساب</h2>
+    <div class="cred" id="credText"></div>
+    <a class="wa" id="credWa" target="_blank" rel="noopener">إرسال البيانات للمركز عبر واتساب</a>
+    <button class="cancel" id="credCopy">نسخ الرسالة</button>
+    <button class="cancel" data-close="doneOv">إغلاق</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const V = '10.12.0';
+const [FA, AU, FS] = await Promise.all([
+  import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+  import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`),
+  import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`),
+]);
+const CONFIG = {
+  apiKey: "AIzaSyBldn10xCykIMS_rWZzZwChIWsIEQ7Gt-I",
+  authDomain: "markas-cloud.firebaseapp.com",
+  projectId: "markas-cloud",
+  storageBucket: "markas-cloud.firebasestorage.app",
+  messagingSenderId: "317944674974",
+  appId: "1:317944674974:web:1b1f3d939609dd351a198f"
+};
+const app = FA.initializeApp(CONFIG);
+// تطبيق ثانٍ لإنشاء حسابات المراكز دون تسجيل خروج المشرف
+const creatorAuth = AU.getAuth(FA.initializeApp(CONFIG, 'creator'));
+const auth = AU.getAuth(app), db = FS.getFirestore(app);
+
+const APP_URL = 'https://lsy303.github.io/Markas-cloud/';
+const DAY = 864e5;
+const COUNTRY = { BH: { n: 'البحرين', dial: '973', len: 8 }, SA: { n: 'السعودية', dial: '966', len: 9 }, KW: { n: 'الكويت', dial: '965', len: 8 },
+                  AE: { n: 'الإمارات', dial: '971', len: 9 }, QA: { n: 'قطر', dial: '974', len: 8 }, OM: { n: 'عُمان', dial: '968', len: 8 } };
+const LABEL = { all: 'الكل', trial: 'تجربة', active: 'مشترك', expiring: 'ينتهي قريباً', expired: 'منتهٍ', suspended: 'موقوف' };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const toast = (m) => { const t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3200); };
+const fmt = (d) => d ? d.toLocaleDateString('ar-BH-u-nu-latn', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+const open = (id) => $(id).style.display = 'flex', close = (id) => $(id).style.display = 'none';
+function waNum(phone, country) {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0')) d = d.slice(1);
+  const c = COUNTRY[country] || COUNTRY.BH;
+  return d && d.length === c.len ? c.dial + d : d;
+}
+function genPass() { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let s = ''; const r = crypto.getRandomValues(new Uint32Array(8)); r.forEach(x => s += a[x % a.length]); return s; }
+
+let LIC = [], filter = 'all';
+function endOf(l) { return l.expiresAt?.toDate?.() || null; }
+function stateOf(l) {
+  if (l.demo) return 'demo';
+  if (l.active !== true) return 'suspended';
+  const end = endOf(l);
+  if (end && end <= new Date()) return 'expired';
+  return l.plan === 'trial' ? 'trial' : 'active';
+}
+function daysLeft(l) { const e = endOf(l); return e ? Math.ceil((e - new Date()) / DAY) : null; }
+
+async function load() {
+  const snap = await FS.getDocs(FS.collection(db, 'licenses'));
+  LIC = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  render();
+}
+
+function render() {
+  const c = { all: 0, trial: 0, active: 0, expiring: 0, expired: 0, suspended: 0 };
+  LIC.forEach(l => { const st = stateOf(l); if (st === 'demo') return; c.all++; c[st]++; const d = daysLeft(l); if ((st === 'active' || st === 'trial') && d !== null && d <= 14) c.expiring++; });
+  $('stats').innerHTML = [['تجربة', c.trial], ['مشترك', c.active], ['ينتهي خلال 14 يوماً', c.expiring], ['منتهٍ أو موقوف', c.expired + c.suspended]]
+    .map(([l, v]) => `<div class="stat"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  $('filters').innerHTML = Object.keys(LABEL).map(k => `<button type="button" class="${k === filter ? 'on' : ''}" data-f="${k}">${LABEL[k]} (${c[k]})</button>`).join('');
+
+  const q = $('q').value.trim().toLowerCase();
+  const rows = LIC.filter(l => {
+    const st = stateOf(l), d = daysLeft(l);
+    if (filter === 'expiring') { if (!((st === 'active' || st === 'trial') && d !== null && d <= 14)) return false; }
+    else if (filter !== 'all' && st !== filter) return false;
+    return !q || [l.centerName, l.email, l.phone].some(v => String(v || '').toLowerCase().includes(q));
+  });
+  if (!rows.length) { $('list').innerHTML = '<div class="empty">لا توجد مراكز في هذا التصنيف</div>'; return; }
+
+  $('list').innerHTML = rows.map(l => {
+    const st = stateOf(l), d = daysLeft(l), end = endOf(l);
+    const wa = waNum(l.phone, l.country);
+    const sub = (st === 'active' || st === 'trial') ? (end ? `ساري حتى ${fmt(end)} · متبقٍّ ${d} يوماً` : 'بدون تاريخ انتهاء') : st === 'expired' ? `انتهى في ${fmt(end)}` : '';
+    const pill = st === 'demo' ? '<span class="pill demo">الحساب التجريبي</span>' : `<span class="pill ${st}">${LABEL[st]}</span>`;
+    const actions = st === 'demo' ? '' : `<div class="actions">
+        <button class="primary" data-a="year" data-id="${l.id}">${st === 'active' ? 'تمديد سنة' : 'تفعيل سنة'}</button>
+        <button data-a="month" data-id="${l.id}">${st === 'active' ? 'تمديد شهر' : 'تفعيل شهر'}</button>
+        ${st === 'trial' || st === 'expired' ? `<button data-a="trial" data-id="${l.id}">تجربة 14 يوماً</button>` : ''}
+        <input type="date" data-date="${l.id}" title="تاريخ انتهاء مخصص"><button data-a="date" data-id="${l.id}">تعيين</button>
+        ${st === 'suspended' ? '' : `<button class="danger" data-a="suspend" data-id="${l.id}">إيقاف</button>`}
+        ${l.email ? `<button data-a="reset" data-id="${l.id}">رابط كلمة مرور جديدة</button>` : ''}
+      </div>`;
+    return `<div class="card">
+      <div class="row">
+        <div>
+          <div class="name">${esc(l.centerName || '(بدون اسم)')}</div>
+          <div class="meta"><span dir="ltr">${esc(l.email || '')}</span>${wa ? ` · <a href="https://wa.me/${wa}" target="_blank" rel="noopener" dir="ltr">${esc(l.phone)}</a>` : ''}<br>
+          ${COUNTRY[l.country]?.n || ''}${l.createdAt ? ' · أُضيف في ' + fmt(l.createdAt.toDate()) : ''}${sub ? ' · ' + sub : ''}</div>
+        </div>${pill}
+      </div>${actions}
+    </div>`;
+  }).join('');
+}
+
+async function act(a, id) {
+  const l = LIC.find(x => x.id === id); if (!l) return;
+  const now = new Date(), curEnd = endOf(l);
+  const base = (l.active === true && curEnd && curEnd > now && l.plan !== 'trial') ? curEnd : now; // التمديد يُضاف إلى المدة المتبقية
+  try {
+    if (a === 'reset') {
+      if (!confirm(`إرسال رابط تعيين كلمة مرور جديدة إلى ${l.email}؟`)) return;
+      await AU.sendPasswordResetEmail(auth, l.email); toast('تم إرسال الرابط إلى بريد المركز'); return;
+    }
+    if (a === 'suspend') {
+      if (!confirm(`إيقاف «${l.centerName}»؟ لن يتمكن المركز من الدخول، وتبقى بياناته محفوظة.`)) return;
+      await FS.updateDoc(FS.doc(db, 'licenses', id), { active: false }); toast('تم إيقاف الحساب'); await load(); return;
+    }
+    let end, plan = 'paid';
+    if (a === 'trial') { end = new Date(now.getTime() + 14 * DAY); plan = 'trial'; }
+    else if (a === 'month') { end = new Date(base); end.setMonth(end.getMonth() + 1); }
+    else if (a === 'year') { end = new Date(base); end.setFullYear(end.getFullYear() + 1); }
+    else if (a === 'date') {
+      const v = document.querySelector(`[data-date="${id}"]`).value;
+      if (!v) { toast('اختر التاريخ أولاً'); return; }
+      end = new Date(v + 'T23:59:59'); plan = l.plan === 'trial' ? 'trial' : 'paid';
+    }
+    if (!confirm(`تفعيل «${l.centerName}» حتى ${fmt(end)}؟`)) return;
+    await FS.updateDoc(FS.doc(db, 'licenses', id), { active: true, plan, expiresAt: FS.Timestamp.fromDate(end) });
+    toast('تم التفعيل حتى ' + fmt(end)); await load();
+  } catch (e) { console.error(e); toast('تعذّر التنفيذ: ' + (e.code === 'permission-denied' ? 'ليست لديك صلاحية' : (e.code || 'خطأ غير متوقع'))); }
+}
+
+// إنشاء مركز جديد
+$('addBtn').onclick = () => { $('addForm').reset(); $('a-pass').value = genPass(); $('addErr').textContent = ''; open('addOv'); };
+$('addForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('addErr').textContent = '';
+  const name = $('a-name').value.trim(), email = $('a-email').value.trim().toLowerCase(), pass = $('a-pass').value;
+  const phone = $('a-phone').value.trim(), country = $('a-country').value, planSel = $('a-plan').value;
+  const now = new Date(); let end = new Date(now);
+  if (planSel === 'trial') end = new Date(now.getTime() + 14 * DAY);
+  else if (planSel === 'month') end.setMonth(end.getMonth() + 1); else end.setFullYear(end.getFullYear() + 1);
+  $('addGo').disabled = true; $('addGo').textContent = 'جارٍ الإنشاء…';
+  try {
+    const cred = await AU.createUserWithEmailAndPassword(creatorAuth, email, pass);
+    const uid = cred.user.uid; await AU.signOut(creatorAuth);
+    await FS.setDoc(FS.doc(db, 'licenses', uid), {
+      active: true, plan: planSel === 'trial' ? 'trial' : 'paid', expiresAt: FS.Timestamp.fromDate(end),
+      centerName: name, email, phone, country, createdAt: FS.serverTimestamp()
+    });
+    close('addOv');
+    const msg = `السلام عليكم ورحمة الله وبركاته،\nتم تفعيل حساب «${name}» في تطبيق تحصيل ${planSel === 'trial' ? 'للتجربة المجانية لمدة 14 يوماً' : 'حتى ' + fmt(end)} ✅\n\nرابط الدخول:\n${APP_URL}\n\nالبريد الإلكتروني: ${email}\nكلمة المرور المؤقتة: ${pass}\n\nيُرجى تغيير كلمة المرور بعد الدخول من «إعدادات المركز».\nيسعدنا تواصلكم لأي استفسار.\nسُحُب 🌧 تمطر حلولًا`;
+    $('credText').textContent = msg;
+    const wa = waNum(phone, country);
+    $('credWa').href = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
+    $('credWa').style.display = wa ? 'block' : 'none';
+    $('credCopy').onclick = async () => { try { await navigator.clipboard.writeText(msg); toast('تم نسخ الرسالة'); } catch (_) { toast('تعذّر النسخ'); } };
+    open('doneOv'); await load();
+  } catch (err) {
+    console.error(err);
+    const M = { 'auth/email-already-in-use': 'هذا البريد مسجّل مسبقاً', 'auth/invalid-email': 'البريد الإلكتروني غير صحيح',
+                'auth/weak-password': 'كلمة المرور قصيرة (6 أحرف على الأقل)', 'permission-denied': 'أُنشئ الحساب لكن تعذّر حفظ التفعيل — تحقق من قواعد Firestore' };
+    $('addErr').textContent = M[err.code] || ('تعذّر الإنشاء: ' + (err.code || 'خطأ غير متوقع'));
+  } finally { $('addGo').disabled = false; $('addGo').textContent = 'إنشاء الحساب وتفعيله'; }
+});
+
+document.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-close]'); if (c) { close(c.dataset.close); return; }
+  const f = e.target.closest('[data-f]'); if (f) { filter = f.dataset.f; render(); return; }
+  const b = e.target.closest('[data-a]'); if (b) act(b.dataset.a, b.dataset.id);
+});
+$('q').addEventListener('input', render);
+$('outBtn').onclick = async () => { await AU.signOut(auth); location.reload(); };
+$('login').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('loginErr').textContent = '';
+  try { await AU.signInWithEmailAndPassword(auth, $('em').value.trim(), $('pw').value); }
+  catch (err) { $('loginErr').textContent = 'البريد الإلكتروني أو كلمة المرور غير صحيحة'; }
+});
+
+AU.onAuthStateChanged(auth, async (user) => {
+  $('status').style.display = 'none';
+  if (!user) { $('login').style.display = 'flex'; $('main').style.display = 'none'; return; }
+  $('login').style.display = 'none';
+  let ok = false;
+  try { ok = (await FS.getDoc(FS.doc(db, 'admins', user.uid))).exists(); } catch (e) {}
+  if (!ok) {
+    $('status').style.display = 'block';
+    $('status').innerHTML = `هذا الحساب ليس حساب مشرف.<br><small dir="ltr">UID: ${esc(user.uid)}</small>`;
+    $('outBtn').style.display = 'inline-block'; return;
+  }
+  $('who').textContent = user.email; $('outBtn').style.display = 'inline-block';
+  $('main').style.display = 'block';
+  try { await load(); } catch (e) { console.error(e); $('list').innerHTML = '<div class="empty">تعذّر تحميل المراكز — تحقق من قواعد Firestore</div>'; }
+});
+</script>
+</body>
+</html>
