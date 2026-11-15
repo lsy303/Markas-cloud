@@ -560,7 +560,14 @@ body.demo .demo-badge{display:inline-block;}
     </div>
     <div class="form-group"><label data-w="teacherL"></label><input type="text" id="h-teacher"/></div>
     <div class="form-group"><label data-w="supervisorL"></label><input type="text" id="h-supervisor"/></div>
-    <div class="form-group"><label>المبلغ الفصلي (<span class="cur-sym">د.ب</span>)</label><input type="number" id="h-amount" placeholder="10" min="0" step="0.001"/></div>
+    <div class="form-group" id="h-billing-group" style="display:none;"><label>طريقة الدفع</label>
+      <select id="h-billing" onchange="updateBillingFields()"><option value="semester">فصلي — دفعة واحدة للفصل</option><option value="monthly">شهري — دفعة لكل شهر</option></select>
+    </div>
+    <div class="form-group"><label id="h-amount-label">المبلغ الفصلي (<span class="cur-sym">د.ب</span>)</label><input type="number" id="h-amount" placeholder="10" min="0" step="0.001" oninput="updateBillingFields()"/></div>
+    <div class="form-group" id="h-months-group" style="display:none;"><label>أشهر الفصل</label>
+      <div id="h-months" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <div class="hint" id="h-months-hint"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeOverlay('halaqa-overlay')">إلغاء</button>
       <button class="btn primary" onclick="saveHalaqa()">💾 حفظ</button>
@@ -1211,6 +1218,13 @@ function sectionsOf(d) { return (d && Array.isArray(d.sections) && d.sections.le
 function sectionOf(e) { const secs = sectionsOf(dById(e.douraId)); return secs.find(s => s.id === e.sectionId) || secs[0]; }
 function enrollBase(e) { return +sectionOf(e).amount || 0; }
 function entryBase(sh) { const h = hById(sh.hid); return h ? +h.amount || 0 : 0; }
+// ===== الحلقات الشهرية (ميزة تُفعَّل لكل مركز من الترخيص: features.monthly) =====
+const ACAD_MONTHS = ['سبتمبر','أكتوبر','نوفمبر','ديسمبر','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس'];
+function monthlyEnabled() { return !!(license && license.features && license.features.monthly === true); }
+function monthlyHalaqa(e) { const h = e && e.hid ? hById(e.hid) : null; return h && h.billing === 'monthly' && Array.isArray(h.months) && h.months.length ? h : null; }
+function monthPer(e, h) { const ft = e.feeType || 'normal'; return (ft === 'reduced' || ft === 'sponsored') ? (+e.customAmount || 0) : (+h.amount || 0); }
+// أشهر السجل بصيغة الأقساط: [{idx,label,amount,paid,paidAt,paymentMethod}]
+function monthsOf(e, h) { const per = monthPer(e, h), mp = e.mpay || {}; return h.months.map((m, i) => ({ idx: i + 1, label: m, amount: per, paid: false, paidAt: null, paymentMethod: null, ...(mp[m] || {}) })); }
 function effAmt(e, base) {
   if (e.feeType === 'exempt') return 0;
   if (e.feeType === 'reduced' || e.feeType === 'sponsored') return +e.customAmount || 0;
@@ -1221,6 +1235,16 @@ function breakdown(e, base) {
   const r = { expected: effAmt(e, base), paid: 0, cash: 0, benefit: 0, other: 0, settled: false, noReminder: false };
   const add = (amt, m) => { r.paid += amt; if (m === 'cash') r.cash += amt; else if (m === 'benefit') r.benefit += amt; else r.other += amt; };
   const ft = e.feeType || 'normal';
+  const mh = monthlyHalaqa(e);
+  if (mh) {
+    r.expected = ft === 'exempt' ? 0 : r3(monthPer(e, mh) * mh.months.length);
+    if (ft === 'exempt') { r.settled = true; r.noReminder = true; }
+    else if (ft === 'sponsored') { add(r.expected, null); r.settled = true; r.noReminder = true; }
+    else { const ms = monthsOf(e, mh); ms.forEach(m => { if (m.paid) add(+m.amount || 0, m.paymentMethod); }); r.settled = ms.every(m => m.paid); }
+    ['paid', 'cash', 'benefit', 'other'].forEach(k => r[k] = r3(r[k]));
+    r.remaining = r3(r.expected - r.paid);
+    return r;
+  }
   if (ft === 'exempt') { r.settled = true; r.noReminder = true; }
   else if (ft === 'sponsored') { add(r.expected, null); r.settled = true; r.noReminder = true; }
   else if (ft === 'installment' && Array.isArray(e.installments) && e.installments.length) {
@@ -1250,6 +1274,8 @@ function splitBadges(c, b, o) {
   return p.join(' ');
 }
 function feeLabel(e, eff) {
+  const mh = monthlyHalaqa(e);
+  if (mh && !['exempt', 'sponsored'].includes(e.feeType)) { const ms = monthsOf(e, mh); return `<span class="badge orange">🗓 شهري ${ms.filter(m => m.paid).length}/${ms.length}</span>` + (e.feeType === 'reduced' ? ` <span class="badge amber">مخفضة</span>` : ''); }
   switch (e.feeType) {
     case 'exempt': return `<span class="badge muted">${w('exempt')}</span>`;
     case 'reduced': return `<span class="badge amber">مخفضة ${money(eff)}</span>`;
@@ -1516,6 +1542,16 @@ function tE(eid) { return `{k:'e',eid:'${esc(eid)}'}`; }
 function payBlockHtml(tStr, e, base, phone, ref, name) {
   const b = breakdown(e, base);
   if (b.noReminder) return `<span class="badge paid">✓ لا يلزم تذكير</span>`;
+  const mh = monthlyHalaqa(e);
+  if (mh) {
+    const ms = monthsOf(e, mh);
+    return `<div class="inst-wrap">${ms.map((it, i) => `<div class="installment-row">
+        <div><div class="installment-label">${esc(it.label)} — ${money(it.amount)}</div>${it.paid && it.paidAt ? `<div class="installment-date">📅 ${fmtDate(it.paidAt)} ${pmIcon(it.paymentMethod)}</div>` : ''}</div>
+        <div class="row-gap">${it.paid
+          ? `<span class="badge paid sm">✓ ${w('paid')}</span><button class="btn sm danger" onclick="startPay(${tStr},${i})">إلغاء</button>`
+          : `<span class="badge unpaid sm">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},${i})">✓ دفع</button>`}</div></div>`).join('')}
+      <div class="inst-sum">مدفوع ${money(b.paid)} من ${money(b.expected)}${phone && !b.settled ? ` · <a class="wa-inline" href="${waLink(phone, reminderText(ref, name))}" target="_blank" rel="noopener">📲 تذكير</a>` : ''}</div></div>`;
+  }
   if (e.feeType === 'installment' && Array.isArray(e.installments) && e.installments.length) {
     const ins = e.installments;
     return `<div class="inst-wrap">${ins.map((it, i) => `<div class="installment-row">
@@ -1530,7 +1566,11 @@ function payBlockHtml(tStr, e, base, phone, ref, name) {
 }
 function entryRowHtml(s, sh) {
   const h = hById(sh.hid), base = +h.amount || 0, eff = effAmt(sh, base), t = tH(s.id, sh.hid);
-  const orig = sh.feeType && !['normal', 'installment'].includes(sh.feeType) ? ` (الأصلي: ${money(base)})` : '';
+  const mh = monthlyHalaqa(sh);
+  const orig = sh.feeType && !['normal', 'installment'].includes(sh.feeType) ? ` (الأصلي: ${money(base)}${mh ? ' شهرياً' : ''})` : '';
+  if (mh) return `<div class="halaqa-row${s.paused ? ' dim' : ''}">
+    <div><div class="halaqa-name-txt">${esc(h.name)} ${feeLabel(sh, eff)}</div><div class="halaqa-amount-txt">${sh.feeType === 'exempt' ? money(0) : money(monthPer(sh, mh)) + ' شهرياً · ' + mh.months.length + ' أشهر'}${orig}</div></div>
+    <div class="row-gap">${payBlockHtml(t, sh, base, s.phone, h.name, s.name)}<button class="btn sm gear" onclick="openFeeType(${t})" title="نوع الرسوم">⚙</button></div></div>`;
   return `<div class="halaqa-row${s.paused ? ' dim' : ''}">
     <div><div class="halaqa-name-txt">${esc(h.name)} ${feeLabel(sh, eff)}</div><div class="halaqa-amount-txt">${money(eff)}${orig}</div></div>
     <div class="row-gap">${payBlockHtml(t, sh, base, s.phone, h.name, s.name)}<button class="btn sm gear" onclick="openFeeType(${t})" title="نوع الرسوم">⚙</button></div></div>`;
@@ -1617,6 +1657,21 @@ function getTarget(t) {
 let pendingPay = null;
 async function startPay(t, inst) {
   const g = getTarget(t); if (!g) return; const e = g.entry;
+  const mh = monthlyHalaqa(e);
+  if (mh) {
+    const m = monthsOf(e, mh)[inst]; if (!m) return;
+    if (m.paid) {
+      const ok = await showConfirm('إلغاء الدفعة', `إلغاء تسجيل دفع شهر ${m.label}؟\n${g.label}`, 'إلغاء الدفعة', 'danger', '↩');
+      if (!ok) return;
+      const g2 = getTarget(t); if (!g2) return; const e2 = g2.entry;
+      e2.mpay = { ...(e2.mpay || {}) }; delete e2.mpay[m.label];
+      e2.paid = false; e2.paidAt = null; e2.paymentMethod = null;
+      g2.save(); toast('تم إلغاء الدفعة', 'info'); return;
+    }
+    pendingPay = { t, inst };
+    $('paymethod-info').textContent = `${g.label} · شهر ${m.label} (${money(m.amount)})`;
+    openOverlay('paymethod-overlay'); return;
+  }
   const item = inst >= 0 ? (e.installments || [])[inst] : e; if (!item) return;
   if (item.paid) {
     const ok = await showConfirm('إلغاء الدفعة', `إلغاء تسجيل الدفع؟\n${g.label}`, 'إلغاء الدفعة', 'danger', '↩');
@@ -1633,7 +1688,13 @@ async function startPay(t, inst) {
 function confirmPayMethod(m) {
   if (!pendingPay) return; const { t, inst } = pendingPay; pendingPay = null; closeOverlay('paymethod-overlay');
   const g = getTarget(t); if (!g) return; const e = g.entry, now = new Date().toISOString();
-  if (inst >= 0) {
+  const mh = monthlyHalaqa(e);
+  if (mh) {
+    const label = mh.months[inst]; if (!label) return;
+    e.mpay = { ...(e.mpay || {}), [label]: { paid: true, paidAt: now, paymentMethod: m } };
+    const all = mh.months.every(x => e.mpay[x] && e.mpay[x].paid);
+    e.paid = all; e.paidAt = all ? now : null; e.paymentMethod = all ? m : null;
+  } else if (inst >= 0) {
     const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m; it.receiptPending = RECEIPTS_ENABLED;
     if (e.installments.every(i => i.paid)) { e.paid = true; e.paidAt = now; e.paymentMethod = m; }
   } else { e.paid = true; e.paidAt = now; e.paymentMethod = m; e.receiptPending = RECEIPTS_ENABLED; }
@@ -1644,7 +1705,9 @@ function confirmPayMethod(m) {
 let feeTarget = null;
 function openFeeType(t) {
   const g = getTarget(t); if (!g) return; feeTarget = t; const e = g.entry;
-  $('ft-info').textContent = `${g.label} · المبلغ الأصلي ${money(g.base)}`;
+  const mh = monthlyHalaqa(e);
+  $('ft-info').textContent = `${g.label} · المبلغ الأصلي ${money(g.base)}${mh ? ' شهرياً' : ''}`;
+  const io = $('ft-select').querySelector('option[value="installment"]'); if (io) io.hidden = !!mh;
   $('ft-select').value = e.feeType || 'normal'; $('ft-amount').value = e.customAmount || '';
   $('ft-inst').value = String(Array.isArray(e.installments) && e.installments.length ? e.installments.length : 2);
   updateFtFields(); openOverlay('feetype-overlay');
@@ -1653,13 +1716,15 @@ function updateFtFields() {
   const t = $('ft-select').value; const g = feeTarget && getTarget(feeTarget);
   $('ft-amount-group').style.display = (t === 'reduced' || t === 'sponsored') ? 'block' : 'none';
   $('ft-inst-group').style.display = t === 'installment' ? 'block' : 'none';
-  $('ft-amount-label').textContent = t === 'sponsored' ? `المبلغ المدفوع من الكفيل (${cur().sym})` : `المبلغ المخفض (${cur().sym})`;
+  const mly = g && monthlyHalaqa(g.entry) ? ' شهرياً' : '';
+  $('ft-amount-label').textContent = t === 'sponsored' ? `المبلغ المدفوع من الكفيل${mly} (${cur().sym})` : `المبلغ المخفض${mly} (${cur().sym})`;
   if (t === 'installment' && g) { const ins = buildInstallments(g.base, +$('ft-inst').value); $('ft-inst-preview').textContent = `الدفعات: ${ins.map(i => num(i.amount)).join(' + ')} = ${money(g.base)}`; }
 }
 async function saveFeeType() {
   const g = getTarget(feeTarget); if (!g) return; const e = g.entry;
   const t = $('ft-select').value, amt = parseFloat($('ft-amount').value) || 0, n = +$('ft-inst').value;
   if ((t === 'reduced' || t === 'sponsored') && amt <= 0) { toast('أدخل المبلغ', 'warn'); return; }
+  if (t === 'installment' && monthlyHalaqa(e)) { toast('الحلقة الشهرية تُدفع شهرياً ولا تحتاج تقسيطاً', 'warn'); return; }
   if (t === 'installment') {
     const same = e.feeType === 'installment' && Array.isArray(e.installments) && e.installments.length === n;
     if (!same) {
@@ -1686,7 +1751,7 @@ function renderHalaqat() {
     return `<tr><td style="color:var(--text-muted);font-size:12px;">${i + 1}</td><td style="font-weight:600;">${esc(h.name)}</td>
       <td style="color:var(--text-muted);">${esc(h.type || '—')}</td><td style="color:var(--text-muted);">${time}</td>
       <td style="color:var(--text-muted);">${esc(h.teacher || '—')}</td><td style="color:var(--text-muted);">${esc(h.supervisor || '—')}</td>
-      <td>${money(h.amount)}</td><td>${count}</td>
+      <td>${money(h.amount)}${h.billing === 'monthly' && Array.isArray(h.months) && h.months.length ? `<div class="hint" style="margin:0;">🗓 شهرياً · ${h.months.length} أشهر</div>` : ''}</td><td>${count}</td>
       <td><div class="row-gap"><button class="btn sm" onclick="openHalaqaModal('${esc(h.id)}')">✏ تعديل</button>
       <button class="btn sm" style="color:var(--amber);" onclick="archiveHalaqa('${esc(h.id)}')">📦 أرشفة</button>
       <button class="btn sm danger" onclick="deleteHalaqa('${esc(h.id)}')">🗑 حذف</button></div></td></tr>`;
@@ -1698,11 +1763,30 @@ function openHalaqaModal(id = null) {
   $('halaqa-modal-title').textContent = h ? 'تعديل الحلقة' : 'إضافة حلقة جديدة';
   $('h-name').value = h ? h.name || '' : ''; $('h-type').value = h ? h.type || '' : ''; $('h-time').value = h ? h.time || '' : '';
   $('h-teacher').value = h ? h.teacher || '' : ''; $('h-supervisor').value = h ? h.supervisor || '' : ''; $('h-amount').value = h ? h.amount : '';
+  const isMon = !!(h && h.billing === 'monthly');
+  $('h-billing-group').style.display = (monthlyEnabled() || isMon) ? 'block' : 'none';
+  $('h-billing').value = isMon ? 'monthly' : 'semester';
+  const sel = isMon && Array.isArray(h.months) ? h.months : ACAD_MONTHS.slice(0, 4);
+  $('h-months').innerHTML = ACAD_MONTHS.map(m => `<label class="halaqa-check-item" style="padding:6px 10px;"><input type="checkbox" value="${m}"${sel.includes(m) ? ' checked' : ''} onchange="updateBillingFields()"/> ${m}</label>`).join('');
+  updateBillingFields();
   openOverlay('halaqa-overlay'); $('h-name').focus();
+}
+function selectedMonths() { return [...$('h-months').querySelectorAll('input:checked')].map(i => i.value); }
+function updateBillingFields() {
+  const m = $('h-billing').value === 'monthly';
+  $('h-months-group').style.display = m ? 'block' : 'none';
+  $('h-amount-label').innerHTML = (m ? 'المبلغ الشهري' : 'المبلغ الفصلي') + ' (<span class="cur-sym">' + cur().sym + '</span>)';
+  if (m) { const n = selectedMonths().length, a = parseFloat($('h-amount').value) || 0; $('h-months-hint').textContent = n ? `${n} أشهر · إجمالي الفصل ${money(a * n)}` : 'اختر شهراً واحداً على الأقل'; }
 }
 function saveHalaqa() {
   const data = { name: $('h-name').value.trim(), type: $('h-type').value.trim(), time: $('h-time').value, teacher: $('h-teacher').value.trim(), supervisor: $('h-supervisor').value.trim(), amount: r3(parseFloat($('h-amount').value) || 0) };
   if (!data.name) { toast('يرجى إدخال اسم الحلقة', 'warn'); return; }
+  if ($('h-billing-group').style.display !== 'none') {
+    if ($('h-billing').value === 'monthly') {
+      const ms = selectedMonths(); if (!ms.length) { toast('اختر أشهر الفصل', 'warn'); return; }
+      data.billing = 'monthly'; data.months = ms;
+    } else { data.billing = 'semester'; data.months = null; }
+  }
   if (editHalaqaId) patchDoc('halaqat', editHalaqaId, data);
   else putDoc('halaqat', { ...data, archived: false });
   closeOverlay('halaqa-overlay'); toast(editHalaqaId ? '✅ تم تحديث الحلقة' : '✅ تمت إضافة الحلقة');
@@ -1881,7 +1965,7 @@ async function confirmRenewal() {
   if (!ok) return;
   exportBackup(true);
   const reset = sh => {
-    const n = { ...sh, paid: false, paidAt: null, paymentMethod: null, receiptPending: false };
+    const n = { ...sh, paid: false, paidAt: null, paymentMethod: null, receiptPending: false, mpay: null };
     if (Array.isArray(sh.installments)) n.installments = sh.installments.map(i => ({ ...i, paid: false, paidAt: null, paymentMethod: null, receiptPending: false }));
     return n;
   };
@@ -2005,6 +2089,8 @@ function calcHalaqa(h) {
 function statusText(e, b) {
   if (e.feeType === 'exempt') return w('exempt');
   if (e.feeType === 'sponsored') return 'بكفالة';
+  const mh = monthlyHalaqa(e);
+  if (mh) { const ms = monthsOf(e, mh); return b.settled ? '✓ ' + w('paid') : `شهري ${ms.filter(m => m.paid).length}/${ms.length}`; }
   if (e.feeType === 'installment' && Array.isArray(e.installments)) return b.settled ? '✓ ' + w('paid') : `تقسيط ${e.installments.filter(i => i.paid).length}/${e.installments.length}`;
   return b.settled ? '✓ ' + w('paid') : '✗ ' + w('notPaid');
 }
@@ -2014,6 +2100,8 @@ function statusBadge(e, b) {
   return `<span class="badge ${cls}">${t}</span>`;
 }
 function lastPaidAt(e) {
+  const mh = monthlyHalaqa(e);
+  if (mh) { const d = monthsOf(e, mh).filter(m => m.paid && m.paidAt).map(m => m.paidAt).sort().pop(); return d || null; }
   if (Array.isArray(e.installments)) { const d = e.installments.filter(i => i.paid && i.paidAt).map(i => i.paidAt).sort().pop(); return d || null; }
   return e.paid ? e.paidAt : null;
 }
