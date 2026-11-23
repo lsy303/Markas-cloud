@@ -53,6 +53,8 @@
   .login input,.modal input,.modal select{padding:12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:15px; width:100%; background:#fff;}
   .login button,.modal .go{padding:12px; border:none; border-radius:10px; background:var(--brand); color:#fff; font-family:inherit; font-weight:800; font-size:16px; cursor:pointer;}
   .err{color:var(--red); font-size:14px; min-height:18px;}
+  .login .forgot{background:none; color:var(--brand); font-weight:600; font-size:13px; padding:4px; text-decoration:underline;}
+  .err.ok{color:#1D7A55;}
   .overlay{position:fixed; inset:0; background:rgba(40,10,20,.45); display:none; align-items:center; justify-content:center; padding:16px; z-index:20;}
   .modal{background:#fff; border-radius:16px; padding:20px; width:100%; max-width:440px; display:flex; flex-direction:column; gap:10px; max-height:92vh; overflow:auto;}
   .modal h2{font-size:19px; font-weight:800;}
@@ -77,6 +79,7 @@
   <input id="em" type="email" placeholder="البريد الإلكتروني" dir="ltr" required autocomplete="username">
   <input id="pw" type="password" placeholder="كلمة المرور" dir="ltr" required autocomplete="current-password">
   <button type="submit">دخول</button>
+  <button type="button" id="forgotBtn" class="forgot">نسيت كلمة المرور؟</button>
   <div class="err" id="loginErr"></div>
 </form>
 
@@ -287,8 +290,18 @@ $('outBtn').onclick = async () => { await AU.signOut(auth); location.reload(); }
 $('login').addEventListener('submit', async (e) => {
   e.preventDefault(); $('loginErr').textContent = '';
   try { await AU.signInWithEmailAndPassword(auth, $('em').value.trim(), $('pw').value); }
-  catch (err) { $('loginErr').textContent = 'البريد الإلكتروني أو كلمة المرور غير صحيحة'; }
+  catch (err) {
+    const m = { 'auth/too-many-requests': 'محاولات كثيرة — انتظر قليلاً ثم حاول مرة أخرى', 'auth/network-request-failed': 'لا يوجد اتصال بالإنترنت', 'auth/user-disabled': 'هذا الحساب موقوف' };
+    $('loginErr').classList.remove('ok'); $('loginErr').textContent = m[err.code] || 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+  }
 });
+// نسيت كلمة المرور: يُرسل رابط إعادة التعيين إلى البريد المكتوب في الخانة
+$('forgotBtn').onclick = async () => {
+  const em = $('em').value.trim(), out = $('loginErr'); out.classList.remove('ok');
+  if (!em) { out.textContent = 'اكتب البريد الإلكتروني أولاً ثم اضغط «نسيت كلمة المرور؟»'; $('em').focus(); return; }
+  try { await AU.sendPasswordResetEmail(auth, em); out.classList.add('ok'); out.textContent = 'تم إرسال رابط إعادة التعيين إلى بريدك — تحقق من صندوق الوارد أو الرسائل غير المرغوبة'; }
+  catch (err) { out.textContent = err.code === 'auth/invalid-email' ? 'صيغة البريد الإلكتروني غير صحيحة' : 'تعذّر الإرسال — تأكد من البريد وحاول مرة أخرى'; }
+};
 
 AU.onAuthStateChanged(auth, async (user) => {
   $('status').style.display = 'none';
