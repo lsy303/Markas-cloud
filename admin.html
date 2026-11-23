@@ -198,8 +198,10 @@ function render() {
     const st = stateOf(l), d = daysLeft(l), end = endOf(l);
     const wa = waNum(l.phone, l.country);
     const sub = (st === 'active' || st === 'trial') ? (end ? `ساري حتى ${fmt(end)} · متبقٍّ ${d} يوماً` : 'بدون تاريخ انتهاء') : st === 'expired' ? `انتهى في ${fmt(end)}` : '';
-    const pill = st === 'demo' ? '<span class="pill demo">الحساب التجريبي</span>' : `<span class="pill ${st}">${LABEL[st]}</span>`;
-    const actions = st === 'demo' ? '' : `<div class="actions">
+    // الحساب التجريبي: حالته الفعلية + زر «تفعيل دائم» فقط (بلا مدة، حتى لا ينقفل الديمو)
+    const demoOk = st === 'demo' && l.active === true && !(end && end <= new Date());
+    const pill = st === 'demo' ? `<span class="pill demo">الحساب التجريبي</span> <span class="pill ${demoOk ? 'active' : 'suspended'}">${demoOk ? 'فعّال' : 'غير فعّال'}</span>` : `<span class="pill ${st}">${LABEL[st]}</span>`;
+    const actions = st === 'demo' ? (demoOk && !end ? '' : `<div class="actions"><button class="primary" data-a="demo-on" data-id="${l.id}">تفعيل دائم</button></div>`) : `<div class="actions">
         <button class="primary" data-a="year" data-id="${l.id}">${st === 'active' ? 'تمديد سنة' : 'تفعيل سنة'}</button>
         <button data-a="month" data-id="${l.id}">${st === 'active' ? 'تمديد شهر' : 'تفعيل شهر'}</button>
         ${st === 'trial' || st === 'expired' ? `<button data-a="trial" data-id="${l.id}">تجربة 14 يوماً</button>` : ''}
@@ -227,6 +229,10 @@ async function act(a, id) {
     if (a === 'reset') {
       if (!confirm(`إرسال رابط تعيين كلمة مرور جديدة إلى ${l.email}؟`)) return;
       await AU.sendPasswordResetEmail(auth, l.email); toast('تم إرسال الرابط إلى بريد المركز'); return;
+    }
+    if (a === 'demo-on') {
+      await FS.updateDoc(FS.doc(db, 'licenses', id), { active: true, demo: true, expiresAt: FS.deleteField() });
+      toast('تم تفعيل الحساب التجريبي بشكل دائم'); await load(); return;
     }
     if (a === 'suspend') {
       if (!confirm(`إيقاف «${l.centerName}»؟ لن يتمكن المركز من الدخول، وتبقى بياناته محفوظة.`)) return;
