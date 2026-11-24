@@ -101,7 +101,7 @@
     <label>الدولة</label>
     <select id="a-country"><option value="BH">البحرين</option><option value="SA">السعودية</option><option value="KW">الكويت</option><option value="AE">الإمارات</option><option value="QA">قطر</option><option value="OM">عُمان</option></select>
     <label>مدة التفعيل</label>
-    <select id="a-plan"><option value="trial">تجربة مجانية — 14 يوماً</option><option value="year">اشتراك سنة</option><option value="month">اشتراك شهر</option></select>
+    <select id="a-plan"><option value="trial">تجربة مجانية — 14 يوماً</option><option value="year">اشتراك سنة</option><option value="half">اشتراك 6 أشهر</option><option value="month">اشتراك شهر</option></select>
     <label>كلمة المرور المؤقتة</label><input id="a-pass" dir="ltr" required minlength="6">
     <div class="hint">أُنشئت تلقائياً، ويمكن للمركز تغييرها من «إعدادات المركز».</div>
     <div class="err" id="addErr"></div>
@@ -203,6 +203,7 @@ function render() {
     const pill = st === 'demo' ? `<span class="pill demo">الحساب التجريبي</span> <span class="pill ${demoOk ? 'active' : 'suspended'}">${demoOk ? 'فعّال' : 'غير فعّال'}</span>` : `<span class="pill ${st}">${LABEL[st]}</span>`;
     const actions = st === 'demo' ? (demoOk && !end ? '' : `<div class="actions"><button class="primary" data-a="demo-on" data-id="${l.id}">تفعيل دائم</button></div>`) : `<div class="actions">
         <button class="primary" data-a="year" data-id="${l.id}">${st === 'active' ? 'تمديد سنة' : 'تفعيل سنة'}</button>
+        <button data-a="half" data-id="${l.id}">${st === 'active' ? 'تمديد 6 أشهر' : 'تفعيل 6 أشهر'}</button>
         <button data-a="month" data-id="${l.id}">${st === 'active' ? 'تمديد شهر' : 'تفعيل شهر'}</button>
         ${st === 'trial' || st === 'expired' ? `<button data-a="trial" data-id="${l.id}">تجربة 14 يوماً</button>` : ''}
         <input type="date" data-date="${l.id}" title="تاريخ انتهاء مخصص"><button data-a="date" data-id="${l.id}">تعيين</button>
@@ -241,6 +242,7 @@ async function act(a, id) {
     let end, plan = 'paid';
     if (a === 'trial') { end = new Date(now.getTime() + 14 * DAY); plan = 'trial'; }
     else if (a === 'month') { end = new Date(base); end.setMonth(end.getMonth() + 1); }
+    else if (a === 'half') { end = new Date(base); end.setMonth(end.getMonth() + 6); }
     else if (a === 'year') { end = new Date(base); end.setFullYear(end.getFullYear() + 1); }
     else if (a === 'date') {
       const v = document.querySelector(`[data-date="${id}"]`).value;
@@ -261,7 +263,9 @@ $('addForm').addEventListener('submit', async (e) => {
   const phone = $('a-phone').value.trim(), country = $('a-country').value, planSel = $('a-plan').value;
   const now = new Date(); let end = new Date(now);
   if (planSel === 'trial') end = new Date(now.getTime() + 14 * DAY);
-  else if (planSel === 'month') end.setMonth(end.getMonth() + 1); else end.setFullYear(end.getFullYear() + 1);
+  else if (planSel === 'month') end.setMonth(end.getMonth() + 1);
+  else if (planSel === 'half') end.setMonth(end.getMonth() + 6);
+  else end.setFullYear(end.getFullYear() + 1);
   $('addGo').disabled = true; $('addGo').textContent = 'جارٍ الإنشاء…';
   try {
     const cred = await AU.createUserWithEmailAndPassword(creatorAuth, email, pass);
