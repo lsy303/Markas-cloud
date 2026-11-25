@@ -104,6 +104,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green);}
 .paid-col{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
 .paid-date{font-size:10px;color:var(--text-muted);display:block;}
 .inst-wrap{width:100%;margin-top:4px;}
+.installment-row.waived{opacity:.6}
 .installment-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--gray-bg);border-radius:var(--radius);margin-bottom:5px;flex-wrap:wrap;gap:6px;}
 .installment-label{font-size:12px;font-weight:600;}
 .installment-date{font-size:10px;color:var(--text-muted);}
@@ -1223,7 +1224,9 @@ function monthlyEnabled() { return !!(license && license.features && license.fea
 function monthlyHalaqa(e) { const h = e && e.hid ? hById(e.hid) : null; return h && h.billing === 'monthly' && Array.isArray(h.months) && h.months.length ? h : null; }
 function monthPer(e, h) { const ft = e.feeType || 'normal'; return (ft === 'reduced' || ft === 'sponsored') ? (+e.customAmount || 0) : (+h.amount || 0); }
 // أشهر السجل بصيغة الأقساط: [{idx,label,amount,paid,paidAt,paymentMethod}]
-function monthsOf(e, h) { const per = monthPer(e, h), mp = e.mpay || {}; return h.months.map((m, i) => ({ idx: i + 1, label: m, amount: per, paid: false, paidAt: null, paymentMethod: null, ...(mp[m] || {}) })); }
+function monthsOf(e, h) { const per = monthPer(e, h), mp = e.mpay || {}; return h.months.map((m, i) => ({ idx: i + 1, label: m, amount: per, paid: false, paidAt: null, paymentMethod: null, waived: false, ...(mp[m] || {}) })); }
+// الأشهر المستحقة فعلاً (بعد استبعاد الأشهر المعفاة لظرف أو قبل التسجيل)
+function dueMonths(e, h) { return monthsOf(e, h).filter(m => !m.waived); }
 function effAmt(e, base) {
   if (e.feeType === 'exempt') return 0;
   if (e.feeType === 'reduced' || e.feeType === 'sponsored') return +e.customAmount || 0;
@@ -1236,10 +1239,10 @@ function breakdown(e, base) {
   const ft = e.feeType || 'normal';
   const mh = monthlyHalaqa(e);
   if (mh) {
-    r.expected = ft === 'exempt' ? 0 : r3(monthPer(e, mh) * mh.months.length);
+    r.expected = ft === 'exempt' ? 0 : r3(monthPer(e, mh) * dueMonths(e, mh).length);
     if (ft === 'exempt') { r.settled = true; r.noReminder = true; }
     else if (ft === 'sponsored') { add(r.expected, null); r.settled = true; r.noReminder = true; }
-    else { const ms = monthsOf(e, mh); ms.forEach(m => { if (m.paid) add(+m.amount || 0, m.paymentMethod); }); r.settled = ms.every(m => m.paid); }
+    else { const ms = dueMonths(e, mh); ms.forEach(m => { if (m.paid) add(+m.amount || 0, m.paymentMethod); }); r.settled = ms.every(m => m.paid); }
     ['paid', 'cash', 'benefit', 'other'].forEach(k => r[k] = r3(r[k]));
     r.remaining = r3(r.expected - r.paid);
     return r;
@@ -1274,7 +1277,7 @@ function splitBadges(c, b, o) {
 }
 function feeLabel(e, eff) {
   const mh = monthlyHalaqa(e);
-  if (mh && !['exempt', 'sponsored'].includes(e.feeType)) { const ms = monthsOf(e, mh); return `<span class="badge orange">🗓 شهري ${ms.filter(m => m.paid).length}/${ms.length}</span>` + (e.feeType === 'reduced' ? ` <span class="badge amber">مخفضة</span>` : ''); }
+  if (mh && !['exempt', 'sponsored'].includes(e.feeType)) { const ms = dueMonths(e, mh); return `<span class="badge orange">🗓 شهري ${ms.filter(m => m.paid).length}/${ms.length}</span>` + (e.feeType === 'reduced' ? ` <span class="badge amber">مخفضة</span>` : ''); }
   switch (e.feeType) {
     case 'exempt': return `<span class="badge muted">${w('exempt')}</span>`;
     case 'reduced': return `<span class="badge amber">مخفضة ${money(eff)}</span>`;
@@ -1544,11 +1547,13 @@ function payBlockHtml(tStr, e, base, phone, ref, name) {
   const mh = monthlyHalaqa(e);
   if (mh) {
     const ms = monthsOf(e, mh);
-    return `<div class="inst-wrap">${ms.map((it, i) => `<div class="installment-row">
+    return `<div class="inst-wrap">${ms.map((it, i) => it.waived ? `<div class="installment-row waived">
+        <div><div class="installment-label">${esc(it.label)} — <s>${money(it.amount)}</s></div><div class="installment-date">⊘ معفى من رسوم هذا الشهر</div></div>
+        <div class="row-gap"><span class="badge sm">⊘ معفى</span><button class="btn sm" onclick="toggleWaive(${tStr},${i})">تراجع</button></div></div>` : `<div class="installment-row">
         <div><div class="installment-label">${esc(it.label)} — ${money(it.amount)}</div>${it.paid && it.paidAt ? `<div class="installment-date">📅 ${fmtDate(it.paidAt)} ${pmIcon(it.paymentMethod)}</div>` : ''}</div>
         <div class="row-gap">${it.paid
           ? `<span class="badge paid sm">✓ ${w('paid')}</span><button class="btn sm danger" onclick="startPay(${tStr},${i})">إلغاء</button>`
-          : `<span class="badge unpaid sm">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},${i})">✓ دفع</button>`}</div></div>`).join('')}
+          : `<span class="badge unpaid sm">✗ ${w('notPaid')}</span><button class="btn sm confirm" onclick="startPay(${tStr},${i})">✓ دفع</button><button class="btn sm" title="إعفاء من رسوم هذا الشهر" onclick="toggleWaive(${tStr},${i})">⊘ إعفاء</button>`}</div></div>`).join('')}
       <div class="inst-sum">مدفوع ${money(b.paid)} من ${money(b.expected)}${phone && !b.settled ? ` · <a class="wa-inline" href="${waLink(phone, reminderText(ref, name))}" target="_blank" rel="noopener">📲 تذكير</a>` : ''}</div></div>`;
   }
   if (e.feeType === 'installment' && Array.isArray(e.installments) && e.installments.length) {
@@ -1653,6 +1658,23 @@ function getTarget(t) {
   const e = eById(t.eid); if (!e) return null; const d = dById(e.douraId);
   return { entry: e, base: enrollBase(e), label: `${e.name} — ${d ? d.name : ''}`, save: () => putDoc('enrollments', e) };
 }
+// إعفاء شهر واحد من الرسوم (لظرف، أو لأن الطالب لم يكن مسجلاً فيه) — لا يُحسب ضمن المستحق ولا المتأخرات
+async function toggleWaive(t, inst) {
+  const g = getTarget(t); if (!g) return; const e = g.entry;
+  const mh = monthlyHalaqa(e); if (!mh) return;
+  const m = monthsOf(e, mh)[inst]; if (!m || m.paid) return;
+  if (!m.waived) {
+    const ok = await showConfirm('إعفاء من رسوم الشهر', `إعفاء شهر ${m.label} من الرسوم؟\n${g.label}\nلن يُحسب هذا الشهر ضمن المستحق ولا المتأخرات.`, 'إعفاء', 'confirm', '⊘');
+    if (!ok) return;
+  }
+  const g2 = getTarget(t); if (!g2) return; const e2 = g2.entry;
+  e2.mpay = { ...(e2.mpay || {}) };
+  if (m.waived) delete e2.mpay[m.label]; else e2.mpay[m.label] = { waived: true, waivedAt: new Date().toISOString() };
+  const all = mh.months.every(x => e2.mpay[x] && (e2.mpay[x].paid || e2.mpay[x].waived));
+  if (!all) { e2.paid = false; e2.paidAt = null; e2.paymentMethod = null; }
+  else if (!e2.paid) { e2.paid = true; e2.paidAt = new Date().toISOString(); }
+  g2.save(); toast(m.waived ? 'تم التراجع عن الإعفاء' : `تم إعفاء شهر ${m.label} من الرسوم`, 'info');
+}
 let pendingPay = null;
 async function startPay(t, inst) {
   const g = getTarget(t); if (!g) return; const e = g.entry;
@@ -1691,7 +1713,7 @@ function confirmPayMethod(m) {
   if (mh) {
     const label = mh.months[inst]; if (!label) return;
     e.mpay = { ...(e.mpay || {}), [label]: { paid: true, paidAt: now, paymentMethod: m } };
-    const all = mh.months.every(x => e.mpay[x] && e.mpay[x].paid);
+    const all = mh.months.every(x => e.mpay[x] && (e.mpay[x].paid || e.mpay[x].waived));
     e.paid = all; e.paidAt = all ? now : null; e.paymentMethod = all ? m : null;
   } else if (inst >= 0) {
     const it = e.installments[inst]; it.paid = true; it.paidAt = now; it.paymentMethod = m; it.receiptPending = RECEIPTS_ENABLED;
@@ -2089,7 +2111,7 @@ function statusText(e, b) {
   if (e.feeType === 'exempt') return w('exempt');
   if (e.feeType === 'sponsored') return 'بكفالة';
   const mh = monthlyHalaqa(e);
-  if (mh) { const ms = monthsOf(e, mh); return b.settled ? '✓ ' + w('paid') : `شهري ${ms.filter(m => m.paid).length}/${ms.length}`; }
+  if (mh) { const ms = dueMonths(e, mh); return b.settled ? '✓ ' + w('paid') : `شهري ${ms.filter(m => m.paid).length}/${ms.length}`; }
   if (e.feeType === 'installment' && Array.isArray(e.installments)) return b.settled ? '✓ ' + w('paid') : `تقسيط ${e.installments.filter(i => i.paid).length}/${e.installments.length}`;
   return b.settled ? '✓ ' + w('paid') : '✗ ' + w('notPaid');
 }
